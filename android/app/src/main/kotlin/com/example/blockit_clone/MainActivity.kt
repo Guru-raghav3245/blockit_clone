@@ -15,14 +15,23 @@ class MainActivity : FlutterActivity() {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             val dpm = getSystemService(DEVICE_POLICY_SERVICE) as DevicePolicyManager
             val adminComponent = ComponentName(this, DeviceAdminReceiver::class.java)
+            val packageName = packageName
 
             when (call.method) {
                 "startLockTask" -> {
-                    if (dpm.isAdminActive(adminComponent)) {
+                    val isAdminActive = dpm.isAdminActive(adminComponent)
+
+                    if (isAdminActive) {
+                        // Whitelist the app + start Lock Task Mode
+                        try {
+                            dpm.setLockTaskPackages(adminComponent, arrayOf(packageName))
+                        } catch (e: Exception) {
+                            // Ignore if already set
+                        }
                         startLockTask()
                         result.success(true)
                     } else {
-                        result.error("DEVICE_ADMIN_NOT_ACTIVE", "Please activate Device Admin first", null)
+                        result.error("DEVICE_ADMIN_NOT_ACTIVE", "Device Admin is not active", null)
                     }
                 }
                 "stopLockTask" -> {
