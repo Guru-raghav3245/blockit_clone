@@ -3,9 +3,14 @@ import 'package:provider/provider.dart';
 import '../../providers/session_provider.dart';
 import '../../providers/stats_provider.dart';
 
-class ActiveSessionScreen extends StatelessWidget {
+class ActiveSessionScreen extends StatefulWidget {
   const ActiveSessionScreen({super.key});
 
+  @override
+  State<ActiveSessionScreen> createState() => _ActiveSessionScreenState();
+}
+
+class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
   @override
   Widget build(BuildContext context) {
     final sessionProvider = context.watch<SessionProvider>();
@@ -14,7 +19,11 @@ class ActiveSessionScreen extends StatelessWidget {
     final bool canUseParachute = statsProvider.parachutesUsed < 1;
 
     return PopScope(
-      onPopInvoked: (didPop) async => false, // Prevent back button
+      canPop: false, // Stronger prevention
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        // Ignore all back gestures while session is active
+      },
       child: Scaffold(
         backgroundColor: Colors.black,
         body: SafeArea(
@@ -40,12 +49,9 @@ class ActiveSessionScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Text(
+                  const Text(
                     'Your phone is locked',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.white70,
-                    ),
+                    style: TextStyle(fontSize: 18, color: Colors.white70),
                   ),
                   const SizedBox(height: 60),
 
@@ -60,18 +66,21 @@ class ActiveSessionScreen extends StatelessWidget {
                     ),
                   ),
 
-                  const SizedBox(height: 80),
+                  const SizedBox(height: 100),
 
-                  // Parachute Button - Only show if not used yet
+                  // Parachute Section
                   if (canUseParachute)
                     TextButton.icon(
                       onPressed: () {
                         showDialog(
                           context: context,
+                          barrierDismissible: false,
                           builder: (context) => AlertDialog(
                             backgroundColor: Colors.grey[900],
-                            title: const Text('Use Parachute?', 
-                                style: TextStyle(color: Colors.white)),
+                            title: const Text(
+                              'Use Parachute?',
+                              style: TextStyle(color: Colors.white),
+                            ),
                             content: const Text(
                               'This will end your freedom session early.\n\n'
                               'You have 1 free parachute.',
@@ -87,30 +96,29 @@ class ActiveSessionScreen extends StatelessWidget {
                                   sessionProvider.emergencyStop(context);
                                   Navigator.pop(context);
                                 },
-                                child: const Text('Use Parachute', 
-                                    style: TextStyle(color: Colors.orange)),
+                                child: const Text(
+                                  'Use Parachute',
+                                  style: TextStyle(color: Colors.orange),
+                                ),
                               ),
                             ],
                           ),
                         );
                       },
-                      icon: const Icon(Icons.flight_takeoff, color: Colors.orange),
+                      icon: const Icon(
+                        Icons.flight_takeoff,
+                        color: Colors.orange,
+                      ),
                       label: const Text(
                         'USE PARACHUTE',
                         style: TextStyle(color: Colors.orange, fontSize: 16),
                       ),
                     )
                   else
-                    const Padding(
-                      padding: EdgeInsets.only(top: 20),
-                      child: Text(
-                        'You have already used your free parachute',
-                        style: TextStyle(
-                          color: Colors.orange,
-                          fontSize: 15,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
+                    const Text(
+                      'You have already used your free parachute',
+                      style: TextStyle(color: Colors.orange, fontSize: 15),
+                      textAlign: TextAlign.center,
                     ),
                 ],
               ),
