@@ -71,29 +71,97 @@ class SessionProvider extends ChangeNotifier {
   Future<void> _showAccessibilityDialog(BuildContext context) async {
     return showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Enable Accessibility Service'),
-        content: const Text(
-          'Blockit needs Accessibility permission to fully lock your phone '
-          'and prevent swipe gestures from escaping.\n\n'
-          'Tap Enable, then find "Blockit Accessibility" and turn it on.',
+      barrierColor: Colors.black54,
+      builder: (_) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: AppConstants.primaryOrange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(Icons.accessibility_new_rounded,
+                    color: AppConstants.primaryOrange),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Enable Accessibility',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppConstants.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Blockit needs Accessibility permission to block swipe gestures during a session.\n\nTap Enable, then find "Blockit Accessibility" and turn it on.',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppConstants.textSecondary,
+                  height: 1.6,
+                ),
+              ),
+              const SizedBox(height: 28),
+              Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF5F5F5),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        alignment: Alignment.center,
+                        child: const Text(
+                          'Cancel',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppConstants.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () async {
+                        Navigator.pop(context);
+                        await PlatformChannelHelper.openAccessibilitySettings();
+                      },
+                      child: Container(
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: AppConstants.primaryOrange,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        alignment: Alignment.center,
+                        child: const Text(
+                          'Enable',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              await PlatformChannelHelper.openAccessibilitySettings();
-            },
-            child: const Text(
-              'Enable',
-              style: TextStyle(color: AppConstants.primaryOrange),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -121,7 +189,8 @@ class SessionProvider extends ChangeNotifier {
     final session = FreedomSession(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       durationMinutes: actualDuration,
-      startTime: DateTime.now().subtract(Duration(minutes: actualDuration)),
+      startTime:
+          DateTime.now().subtract(Duration(minutes: actualDuration)),
       usedParachute: false,
     );
 
@@ -148,7 +217,8 @@ class SessionProvider extends ChangeNotifier {
     final session = FreedomSession(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       durationMinutes: actualDuration,
-      startTime: DateTime.now().subtract(Duration(minutes: actualDuration)),
+      startTime:
+          DateTime.now().subtract(Duration(minutes: actualDuration)),
       usedParachute: true,
     );
 

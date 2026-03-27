@@ -1,7 +1,8 @@
 import 'package:flutter/services.dart';
 
 class PlatformChannelHelper {
-  static const MethodChannel _channel = MethodChannel('com.blockit/device_admin');
+  static const MethodChannel _channel =
+      MethodChannel('com.blockit/device_admin');
 
   static Future<bool> startLockTask() async {
     try {
@@ -25,7 +26,8 @@ class PlatformChannelHelper {
 
   static Future<bool> isDeviceAdminActive() async {
     try {
-      final result = await _channel.invokeMethod<bool>('isDeviceAdminActive');
+      final result =
+          await _channel.invokeMethod<bool>('isDeviceAdminActive');
       return result ?? false;
     } on PlatformException catch (e) {
       print('Failed to check device admin: ${e.message}');

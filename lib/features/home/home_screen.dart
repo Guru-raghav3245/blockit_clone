@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:blockit_clone/core/constants/app_constants.dart';
 import 'package:blockit_clone/providers/session_provider.dart';
+import 'package:blockit_clone/core/utils/platform_channel_helper.dart';
 import 'widgets/analog_wheel_picker.dart';
 import 'widgets/start_session_button.dart';
 import 'package:blockit_clone/features/settings/settings_screen.dart';
 import 'package:blockit_clone/features/stats/stats_screen.dart';
-import 'package:blockit_clone/core/utils/platform_channel_helper.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -33,12 +33,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     super.dispose();
   }
 
-  // Re-check when user returns from Settings or Accessibility screen
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _checkStatuses();
-    }
+    if (state == AppLifecycleState.resumed) _checkStatuses();
   }
 
   Future<void> _checkStatuses() async {
@@ -53,110 +50,145 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
+  bool get _isFullySetup => _isDeviceAdminActive && _isAccessibilityEnabled;
+
   @override
   Widget build(BuildContext context) {
     final sessionProvider = context.watch<SessionProvider>();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('blockit'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.bar_chart),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const StatsScreen()),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () async {
-              await Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const SettingsScreen()),
-              );
-              // Refresh statuses when returning from settings
-              _checkStatuses();
-            },
-          ),
-        ],
-      ),
+      backgroundColor: AppConstants.backgroundColor,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Column(
-            children: [
-              const SizedBox(height: 40),
-
-              // Header
-              Text(
-                'How long do you want to be free?',
-                style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                      fontSize: 28,
+        child: Column(
+          children: [
+            // ── Top Bar ──────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'blockit',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                      color: AppConstants.textPrimary,
+                      letterSpacing: -0.5,
                     ),
-                textAlign: TextAlign.center,
+                  ),
+                  Row(
+                    children: [
+                      _TopBarButton(
+                        icon: Icons.bar_chart_rounded,
+                        onTap: () => Navigator.push(context,
+                            MaterialPageRoute(
+                                builder: (_) => const StatsScreen())),
+                      ),
+                      const SizedBox(width: 8),
+                      _TopBarButton(
+                        icon: Icons.settings_outlined,
+                        onTap: () async {
+                          await Navigator.push(context,
+                              MaterialPageRoute(
+                                  builder: (_) => const SettingsScreen()));
+                          _checkStatuses();
+                        },
+                        showDot: !_isFullySetup,
+                      ),
+                    ],
+                  ),
+                ],
               ),
+            ),
 
-              const SizedBox(height: 12),
-
-              Text(
-                'Phone will be completely locked',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: AppConstants.textSecondary,
+            // ── Setup Banner ─────────────────────────────────────────
+            if (!_isFullySetup)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+                child: _SetupBanner(
+                  isDeviceAdminActive: _isDeviceAdminActive,
+                  isAccessibilityEnabled: _isAccessibilityEnabled,
+                  onTap: () async {
+                    await Navigator.push(context,
+                        MaterialPageRoute(
+                            builder: (_) => const SettingsScreen()));
+                    _checkStatuses();
+                  },
                 ),
-                textAlign: TextAlign.center,
               ),
 
-              // Setup warning banners
-              if (!_isDeviceAdminActive || !_isAccessibilityEnabled) ...[
-                const SizedBox(height: 16),
-                _buildSetupBanner(context),
-              ],
+            const Spacer(),
 
-              const SizedBox(height: 30),
-
-              // Analog Wheel Picker
-              AnalogWheelPicker(
-                selectedMinutes: _selectedDuration,
-                onDurationChanged: (minutes) {
-                  setState(() => _selectedDuration = minutes);
-                },
+            // ── Subtitle label ───────────────────────────────────────
+            const Text(
+              'LOCK YOUR PHONE FOR',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: AppConstants.textSecondary,
+                letterSpacing: 2.0,
               ),
+            ),
 
-              const SizedBox(height: 20),
+            const SizedBox(height: 28),
 
-              // Selected time display
-              Text(
-                '$_selectedDuration minutes',
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w600,
-                  color: AppConstants.primaryOrange,
-                ),
+            // ── Wheel Picker ─────────────────────────────────────────
+            AnalogWheelPicker(
+              selectedMinutes: _selectedDuration,
+              onDurationChanged: (minutes) =>
+                  setState(() => _selectedDuration = minutes),
+            ),
+
+            const SizedBox(height: 20),
+
+            // ── Duration readout ─────────────────────────────────────
+            RichText(
+              text: TextSpan(
+                children: [
+                  TextSpan(
+                    text: '$_selectedDuration',
+                    style: const TextStyle(
+                      fontSize: 52,
+                      fontWeight: FontWeight.w800,
+                      color: AppConstants.textPrimary,
+                      letterSpacing: -2,
+                      height: 1,
+                    ),
+                  ),
+                  const TextSpan(
+                    text: ' min',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w400,
+                      color: AppConstants.textSecondary,
+                      letterSpacing: 0,
+                    ),
+                  ),
+                ],
               ),
+            ),
 
-              const Spacer(),
+            const Spacer(),
 
-              // Start Button
-              StartSessionButton(
+            // ── Start Button ─────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: StartSessionButton(
                 onPressed: () async {
                   final success = await sessionProvider.startSession(
-                    _selectedDuration,
-                    context,
-                  );
-
+                      _selectedDuration, context);
                   if (!success && mounted) {
-                    // Only show this snackbar if accessibility IS enabled
-                    // but device admin failed (accessibility dialog handles the other case)
-                    final accessOk =
-                        await PlatformChannelHelper.isAccessibilityServiceEnabled();
+                    final accessOk = await PlatformChannelHelper
+                        .isAccessibilityServiceEnabled();
                     if (accessOk) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                              'Please activate Device Admin first in Settings'),
-                          backgroundColor: Colors.orange,
+                        SnackBar(
+                          content: const Text(
+                              'Activate Device Admin in Settings first'),
+                          backgroundColor: AppConstants.textPrimary,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
                         ),
                       );
                     }
@@ -164,51 +196,103 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 },
                 isLoading: sessionProvider.isLocking,
               ),
+            ),
 
-              const SizedBox(height: 40),
-            ],
-          ),
+            const SizedBox(height: 40),
+          ],
         ),
       ),
     );
   }
+}
 
-  Widget _buildSetupBanner(BuildContext context) {
+class _TopBarButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool showDot;
+
+  const _TopBarButton(
+      {required this.icon, required this.onTap, this.showDot = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppConstants.textPrimary.withOpacity(0.1)),
+            ),
+            child: Icon(icon, size: 20, color: AppConstants.textPrimary),
+          ),
+          if (showDot)
+            Positioned(
+              top: -2,
+              right: -2,
+              child: Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                    color: AppConstants.primaryOrange,
+                    shape: BoxShape.circle),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SetupBanner extends StatelessWidget {
+  final bool isDeviceAdminActive;
+  final bool isAccessibilityEnabled;
+  final VoidCallback onTap;
+
+  const _SetupBanner({
+    required this.isDeviceAdminActive,
+    required this.isAccessibilityEnabled,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     final List<String> missing = [];
-    if (!_isDeviceAdminActive) missing.add('Device Admin');
-    if (!_isAccessibilityEnabled) missing.add('Accessibility Service');
+    if (!isDeviceAdminActive) missing.add('Device Admin');
+    if (!isAccessibilityEnabled) missing.add('Accessibility');
 
     return GestureDetector(
-      onTap: () async {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const SettingsScreen()),
-        );
-        _checkStatuses();
-      },
+      onTap: onTap,
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.orange.shade50,
+          color: const Color(0xFFFFF3E0),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.orange.shade200),
+          border: Border.all(color: const Color(0xFFFFCC80)),
         ),
         child: Row(
           children: [
             const Icon(Icons.warning_amber_rounded,
-                color: Colors.orange, size: 20),
+                color: AppConstants.primaryOrange, size: 16),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                'Setup required: ${missing.join(' & ')} not enabled. Tap to fix →',
+                '${missing.join(' & ')} not set up — tap to fix',
                 style: const TextStyle(
-                  fontSize: 13,
-                  color: Colors.orange,
-                  fontWeight: FontWeight.w500,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppConstants.primaryOrange,
                 ),
               ),
             ),
+            const Icon(Icons.chevron_right_rounded,
+                color: AppConstants.primaryOrange, size: 16),
           ],
         ),
       ),

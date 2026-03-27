@@ -21,6 +21,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _checkStatuses();
+    context.read<StatsProvider>().loadStats();
   }
 
   @override
@@ -29,12 +30,9 @@ class _SettingsScreenState extends State<SettingsScreen>
     super.dispose();
   }
 
-  // Re-check when user returns from Android Settings
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _checkStatuses();
-    }
+    if (state == AppLifecycleState.resumed) _checkStatuses();
   }
 
   Future<void> _checkStatuses() async {
@@ -49,211 +47,345 @@ class _SettingsScreenState extends State<SettingsScreen>
     }
   }
 
-  Future<void> _activateDeviceAdmin() async {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Activate Device Admin'),
-        content: const Text(
-          'To enable full phone lockdown:\n\n'
-          '1. Tap Activate\n'
-          '2. Go to Settings → Security → Device admin apps\n'
-          '3. Enable "blockit_clone"',
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              await PlatformChannelHelper.startLockTask();
-              await _checkStatuses();
-            },
-            child: const Text('Activate',
-                style: TextStyle(color: AppConstants.primaryOrange)),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final stats = context.watch<StatsProvider>();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      backgroundColor: AppConstants.backgroundColor,
+      appBar: AppBar(
+        backgroundColor: AppConstants.backgroundColor,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        leading: GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: Container(
+            margin: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppConstants.borderColor),
+            ),
+            child: const Icon(Icons.arrow_back_rounded,
+                size: 18, color: AppConstants.textPrimary),
+          ),
+        ),
+        title: const Text(
+          'SETTINGS',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: AppConstants.textSecondary,
+            letterSpacing: 2.0,
+          ),
+        ),
+        centerTitle: true,
+      ),
       body: ListView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.fromLTRB(24, 8, 24, 40),
         children: [
-          // ── Device Admin Card ──────────────────────────────────────────
-          Card(
-            elevation: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        _isDeviceAdminActive
-                            ? Icons.verified
-                            : Icons.security,
-                        color: _isDeviceAdminActive
-                            ? Colors.green
-                            : AppConstants.primaryOrange,
-                        size: 32,
-                      ),
-                      const SizedBox(width: 16),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Device Admin',
-                                style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold)),
-                            Text('Required for complete phone lock'),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed:
-                          _isDeviceAdminActive ? null : _activateDeviceAdmin,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _isDeviceAdminActive
-                            ? Colors.green
-                            : AppConstants.primaryOrange,
-                      ),
-                      child: Text(_isDeviceAdminActive
-                          ? 'Device Admin Active ✓'
-                          : 'Activate Device Admin'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          // ── Section: Permissions ────────────────────────────────────
+          _SectionLabel(label: 'PERMISSIONS'),
+          const SizedBox(height: 12),
+
+          _PermissionTile(
+            icon: Icons.security_rounded,
+            title: 'Device Admin',
+            subtitle: 'Required for Lock Task mode',
+            isActive: _isDeviceAdminActive,
+            onTap: _isDeviceAdminActive
+                ? null
+                : () async {
+                    await PlatformChannelHelper.startLockTask();
+                    await _checkStatuses();
+                  },
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
 
-          // ── Accessibility Service Card ─────────────────────────────────
-          Card(
-            elevation: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        _isAccessibilityEnabled
-                            ? Icons.verified
-                            : Icons.accessibility_new,
-                        color: _isAccessibilityEnabled
-                            ? Colors.green
-                            : AppConstants.primaryOrange,
-                        size: 32,
-                      ),
-                      const SizedBox(width: 16),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Accessibility Service',
-                                style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold)),
-                            Text('Required to block swipe gestures'),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _isAccessibilityEnabled
-                          ? null
-                          : () async {
-                              await PlatformChannelHelper
-                                  .openAccessibilitySettings();
-                            },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _isAccessibilityEnabled
-                            ? Colors.green
-                            : AppConstants.primaryOrange,
-                      ),
-                      child: Text(_isAccessibilityEnabled
-                          ? 'Accessibility Active ✓'
-                          : 'Enable Accessibility Service'),
-                    ),
-                  ),
-                  if (!_isAccessibilityEnabled)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 10),
-                      child: Text(
-                        'Find "Blockit Accessibility" in the list and toggle it on.',
-                        style:
-                            TextStyle(fontSize: 12, color: AppConstants.textSecondary),
-                      ),
-                    ),
-                ],
-              ),
-            ),
+          _PermissionTile(
+            icon: Icons.accessibility_new_rounded,
+            title: 'Accessibility Service',
+            subtitle: 'Blocks swipe-to-exit gestures',
+            isActive: _isAccessibilityEnabled,
+            onTap: _isAccessibilityEnabled
+                ? null
+                : () async {
+                    await PlatformChannelHelper.openAccessibilitySettings();
+                  },
+            hint: _isAccessibilityEnabled
+                ? null
+                : 'Find "Blockit Accessibility" in the list and enable it',
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 32),
 
-          // ── Parachute Card ─────────────────────────────────────────────
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Parachute (Emergency Exit)',
-                      style: TextStyle(
-                          fontSize: 18, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  const Text('You get 1 free parachute to exit a session early.'),
-                  const SizedBox(height: 16),
-                  Row(
+          // ── Section: Parachute ──────────────────────────────────────
+          _SectionLabel(label: 'PARACHUTE'),
+          const SizedBox(height: 12),
+
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppConstants.borderColor),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: AppConstants.primaryOrange.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.flight_takeoff_rounded,
+                      color: AppConstants.primaryOrange, size: 22),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Used: ', style: TextStyle(fontSize: 16)),
-                      Text(
-                        '${stats.parachutesUsed} / 1',
+                      const Text(
+                        'Emergency exit',
                         style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: stats.parachutesUsed >= 1
-                              ? Colors.orange
-                              : AppConstants.textPrimary,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: AppConstants.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'You get one free parachute per session',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppConstants.textSecondary,
                         ),
                       ),
                     ],
                   ),
-                  if (stats.parachutesUsed >= 1)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 8),
-                      child: Text('You have used your free parachute.',
-                          style: TextStyle(color: Colors.orange)),
+                ),
+                const SizedBox(width: 12),
+                // Usage badge
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: stats.parachutesUsed >= 1
+                        ? AppConstants.primaryOrange.withOpacity(0.1)
+                        : const Color(0xFFF0F0F0),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '${stats.parachutesUsed}/1',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: stats.parachutesUsed >= 1
+                          ? AppConstants.primaryOrange
+                          : AppConstants.textSecondary,
                     ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          if (stats.parachutesUsed >= 1) ...[
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline_rounded,
+                      size: 13, color: AppConstants.primaryOrange),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Free parachute has been used.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppConstants.primaryOrange,
+                    ),
+                  ),
                 ],
               ),
             ),
-          ),
+          ],
         ],
       ),
+    );
+  }
+}
+
+// ── Section Label ─────────────────────────────────────────────────────────────
+
+class _SectionLabel extends StatelessWidget {
+  final String label;
+  const _SectionLabel({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label,
+      style: const TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w700,
+        color: AppConstants.textSecondary,
+        letterSpacing: 1.8,
+      ),
+    );
+  }
+}
+
+// ── Permission Tile ───────────────────────────────────────────────────────────
+
+class _PermissionTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool isActive;
+  final VoidCallback? onTap;
+  final String? hint;
+
+  const _PermissionTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.isActive,
+    this.onTap,
+    this.hint,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        GestureDetector(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius:
+                  BorderRadius.circular(hint != null && !isActive ? 12 : 16),
+              border: Border.all(
+                color: isActive
+                    ? const Color(0xFFE8F5E9)
+                    : AppConstants.borderColor,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: isActive
+                        ? const Color(0xFFE8F5E9)
+                        : const Color(0xFFF5F5F5),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 22,
+                    color: isActive
+                        ? AppConstants.successGreen
+                        : AppConstants.textSecondary,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: AppConstants.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppConstants.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                if (isActive)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE8F5E9),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text(
+                      'Active',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppConstants.successGreen,
+                      ),
+                    ),
+                  )
+                else
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: AppConstants.primaryOrange,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text(
+                      'Enable',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        if (hint != null && !isActive)
+          Container(
+            width: double.infinity,
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: const BoxDecoration(
+              color: Color(0xFFFFF8F0),
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(12),
+                bottomRight: Radius.circular(12),
+              ),
+              border: Border(
+                left: BorderSide(color: Color(0xFFFFE0B2)),
+                right: BorderSide(color: Color(0xFFFFE0B2)),
+                bottom: BorderSide(color: Color(0xFFFFE0B2)),
+              ),
+            ),
+            child: Text(
+              hint!,
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppConstants.primaryOrange,
+                height: 1.4,
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

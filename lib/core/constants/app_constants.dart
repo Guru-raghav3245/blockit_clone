@@ -5,17 +5,19 @@ class AppConstants {
   static const String appName = "blockit";
   static const String appTagline = "stop phone addiction";
 
-  // Colors (Blockit style: clean white/grey + vibrant orange)
+  // Colors — BlockIt style: clean white/grey/black + vibrant orange
   static const Color primaryOrange = Color(0xFFFF6A00);
-  static const Color backgroundColor = Color(0xFFF8F9FA);
+  static const Color backgroundColor = Color(0xFFF5F5F5);
   static const Color surfaceColor = Colors.white;
-  static const Color textPrimary = Color(0xFF1F1F1F);
-  static const Color textSecondary = Color(0xFF6B7280);
+  static const Color textPrimary = Color(0xFF0D0D0D);
+  static const Color textSecondary = Color(0xFF9E9E9E);
+  static const Color borderColor = Color(0xFFEEEEEE);
+  static const Color successGreen = Color(0xFF2E7D32);
 
-  // Session durations (common presets)
+  // Session durations
   static const List<int> presetDurationsMinutes = [15, 30, 45, 60, 90, 120];
 
-  // Parachute (emergency exit)
+  // Parachute
   static const int maxFreeParachutes = 1;
 
   // Storage keys

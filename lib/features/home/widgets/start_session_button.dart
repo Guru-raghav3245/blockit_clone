@@ -15,24 +15,35 @@ class StartSessionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: 68,
+      height: 62,
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppConstants.primaryOrange,
+          disabledBackgroundColor: AppConstants.primaryOrange.withOpacity(0.6),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shadowColor: Colors.transparent,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(16),
           ),
-          elevation: 4,
         ),
         child: isLoading
-            ? const CircularProgressIndicator(color: Colors.white)
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2.5,
+                ),
+              )
             : const Text(
-                'START FREEDOM SESSION',
+                'START SESSION',
                 style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.2,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 2.0,
+                  color: Colors.white,
                 ),
               ),
       ),
