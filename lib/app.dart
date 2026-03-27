@@ -18,8 +18,8 @@ class BlockitApp extends StatelessWidget {
       child: MaterialApp(
         title: 'blockit',
         debugShowCheckedModeBanner: false,
-        theme: AppTheme.lightTheme,
-        home:  HomeScreen(),
+        theme: AppTheme.darkTheme,
+        home: const HomeScreen(),
       ),
     );
   }

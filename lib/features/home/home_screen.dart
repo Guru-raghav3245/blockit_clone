@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:blockit_clone/core/constants/app_constants.dart';
-import 'package:blockit_clone/providers/session_provider.dart';
-import 'package:blockit_clone/core/utils/platform_channel_helper.dart';
+import '../../core/constants/app_constants.dart';
+import '../../providers/session_provider.dart';
+import '../../core/utils/platform_channel_helper.dart';
 import 'widgets/analog_wheel_picker.dart';
 import 'widgets/start_session_button.dart';
-import 'package:blockit_clone/features/settings/settings_screen.dart';
-import 'package:blockit_clone/features/stats/stats_screen.dart';
+import '../settings/settings_screen.dart';
+import '../stats/stats_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -40,8 +40,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _checkStatuses() async {
     final admin = await PlatformChannelHelper.isDeviceAdminActive();
-    final accessibility =
-        await PlatformChannelHelper.isAccessibilityServiceEnabled();
+    final accessibility = await PlatformChannelHelper.isAccessibilityServiceEnabled();
     if (mounted) {
       setState(() {
         _isDeviceAdminActive = admin;
@@ -57,40 +56,38 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final sessionProvider = context.watch<SessionProvider>();
 
     return Scaffold(
-      backgroundColor: AppConstants.backgroundColor,
+      backgroundColor: const Color(0xFF0A0A0A),
       body: SafeArea(
         child: Column(
           children: [
-            // ── Top Bar ──────────────────────────────────────────────
+            // Top Bar
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 12),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
                     'blockit',
                     style: TextStyle(
-                      fontSize: 20,
+                      fontSize: 28,
                       fontWeight: FontWeight.w900,
-                      color: AppConstants.textPrimary,
-                      letterSpacing: -0.5,
+                      color: Colors.white,
+                      letterSpacing: -1.0,
                     ),
                   ),
                   Row(
                     children: [
                       _TopBarButton(
                         icon: Icons.bar_chart_rounded,
-                        onTap: () => Navigator.push(context,
-                            MaterialPageRoute(
-                                builder: (_) => const StatsScreen())),
+                        onTap: () => Navigator.push(
+                            context, MaterialPageRoute(builder: (_) => const StatsScreen())),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 12),
                       _TopBarButton(
                         icon: Icons.settings_outlined,
                         onTap: () async {
-                          await Navigator.push(context,
-                              MaterialPageRoute(
-                                  builder: (_) => const SettingsScreen()));
+                          await Navigator.push(
+                              context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
                           _checkStatuses();
                         },
                         showDot: !_isFullySetup,
@@ -101,17 +98,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ),
             ),
 
-            // ── Setup Banner ─────────────────────────────────────────
             if (!_isFullySetup)
               Padding(
-                padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
                 child: _SetupBanner(
                   isDeviceAdminActive: _isDeviceAdminActive,
                   isAccessibilityEnabled: _isAccessibilityEnabled,
                   onTap: () async {
                     await Navigator.push(context,
-                        MaterialPageRoute(
-                            builder: (_) => const SettingsScreen()));
+                        MaterialPageRoute(builder: (_) => const SettingsScreen()));
                     _checkStatuses();
                   },
                 ),
@@ -119,76 +114,52 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
             const Spacer(),
 
-            // ── Subtitle label ───────────────────────────────────────
+            // Large Timer Display
+            Text(
+              '$_selectedDuration',
+              style: const TextStyle(
+                fontSize: 110,
+                fontWeight: FontWeight.w300,
+                color: Colors.white,
+                height: 1.0,
+                letterSpacing: -8,
+              ),
+            ),
             const Text(
-              'LOCK YOUR PHONE FOR',
+              'MINUTES',
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 15,
                 fontWeight: FontWeight.w700,
-                color: AppConstants.textSecondary,
-                letterSpacing: 2.0,
+                letterSpacing: 3.5,
+                color: Colors.white54,
               ),
             ),
 
-            const SizedBox(height: 28),
+            const SizedBox(height: 32),
 
-            // ── Wheel Picker ─────────────────────────────────────────
+            // Analog Wheel Picker
             AnalogWheelPicker(
               selectedMinutes: _selectedDuration,
-              onDurationChanged: (minutes) =>
-                  setState(() => _selectedDuration = minutes),
-            ),
-
-            const SizedBox(height: 20),
-
-            // ── Duration readout ─────────────────────────────────────
-            RichText(
-              text: TextSpan(
-                children: [
-                  TextSpan(
-                    text: '$_selectedDuration',
-                    style: const TextStyle(
-                      fontSize: 52,
-                      fontWeight: FontWeight.w800,
-                      color: AppConstants.textPrimary,
-                      letterSpacing: -2,
-                      height: 1,
-                    ),
-                  ),
-                  const TextSpan(
-                    text: ' min',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w400,
-                      color: AppConstants.textSecondary,
-                      letterSpacing: 0,
-                    ),
-                  ),
-                ],
-              ),
+              onDurationChanged: (minutes) => setState(() => _selectedDuration = minutes),
             ),
 
             const Spacer(),
 
-            // ── Start Button ─────────────────────────────────────────
+            // Start Button
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
+              padding: const EdgeInsets.symmetric(horizontal: 32),
               child: StartSessionButton(
                 onPressed: () async {
                   final success = await sessionProvider.startSession(
                       _selectedDuration, context);
                   if (!success && mounted) {
-                    final accessOk = await PlatformChannelHelper
-                        .isAccessibilityServiceEnabled();
+                    final accessOk = await PlatformChannelHelper.isAccessibilityServiceEnabled();
                     if (accessOk) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: const Text(
-                              'Activate Device Admin in Settings first'),
-                          backgroundColor: AppConstants.textPrimary,
+                        const SnackBar(
+                          content: Text('Activate Device Admin in Settings first'),
+                          backgroundColor: Color(0xFF1A1A1A),
                           behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
                         ),
                       );
                     }
@@ -198,7 +169,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ),
             ),
 
-            const SizedBox(height: 40),
+            const SizedBox(height: 48),
           ],
         ),
       ),
@@ -206,13 +177,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 }
 
+// Top Bar Button
 class _TopBarButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
   final bool showDot;
 
-  const _TopBarButton(
-      {required this.icon, required this.onTap, this.showDot = false});
+  const _TopBarButton({required this.icon, required this.onTap, this.showDot = false});
 
   @override
   Widget build(BuildContext context) {
@@ -222,25 +193,26 @@ class _TopBarButton extends StatelessWidget {
         clipBehavior: Clip.none,
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: const Color(0xFF1A1A1A),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppConstants.textPrimary.withOpacity(0.1)),
+              border: Border.all(color: Colors.white.withOpacity(0.1)),
             ),
-            child: Icon(icon, size: 20, color: AppConstants.textPrimary),
+            child: Icon(icon, size: 22, color: Colors.white),
           ),
           if (showDot)
             Positioned(
-              top: -2,
-              right: -2,
+              top: -3,
+              right: -3,
               child: Container(
-                width: 8,
-                height: 8,
+                width: 10,
+                height: 10,
                 decoration: const BoxDecoration(
-                    color: AppConstants.primaryOrange,
-                    shape: BoxShape.circle),
+                  color: AppConstants.primaryOrange,
+                  shape: BoxShape.circle,
+                ),
               ),
             ),
         ],
@@ -249,6 +221,7 @@ class _TopBarButton extends StatelessWidget {
   }
 }
 
+// Setup Banner
 class _SetupBanner extends StatelessWidget {
   final bool isDeviceAdminActive;
   final bool isAccessibilityEnabled;
@@ -269,30 +242,27 @@ class _SetupBanner extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFF3E0),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFFFCC80)),
+          color: const Color(0xFFFFF3E0).withOpacity(0.12),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppConstants.primaryOrange.withOpacity(0.3)),
         ),
         child: Row(
           children: [
-            const Icon(Icons.warning_amber_rounded,
-                color: AppConstants.primaryOrange, size: 16),
-            const SizedBox(width: 10),
+            Icon(Icons.warning_amber_rounded, color: AppConstants.primaryOrange, size: 20),
+            const SizedBox(width: 12),
             Expanded(
               child: Text(
                 '${missing.join(' & ')} not set up — tap to fix',
                 style: const TextStyle(
-                  fontSize: 12,
+                  fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: AppConstants.primaryOrange,
+                  color: Colors.white70,
                 ),
               ),
             ),
-            const Icon(Icons.chevron_right_rounded,
-                color: AppConstants.primaryOrange, size: 16),
+            Icon(Icons.chevron_right_rounded, color: AppConstants.primaryOrange, size: 20),
           ],
         ),
       ),

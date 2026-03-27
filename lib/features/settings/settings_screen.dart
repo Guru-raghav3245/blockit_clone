@@ -52,9 +52,9 @@ class _SettingsScreenState extends State<SettingsScreen>
     final stats = context.watch<StatsProvider>();
 
     return Scaffold(
-      backgroundColor: AppConstants.backgroundColor,
+      backgroundColor: const Color(0xFF0A0A0A),
       appBar: AppBar(
-        backgroundColor: AppConstants.backgroundColor,
+        backgroundColor: const Color(0xFF0A0A0A),
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: GestureDetector(
@@ -62,31 +62,31 @@ class _SettingsScreenState extends State<SettingsScreen>
           child: Container(
             margin: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppConstants.borderColor),
+              color: const Color(0xFF1A1A1A),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFF2A2A2A)),
             ),
             child: const Icon(Icons.arrow_back_rounded,
-                size: 18, color: AppConstants.textPrimary),
+                size: 20, color: Colors.white),
           ),
         ),
         title: const Text(
           'SETTINGS',
           style: TextStyle(
-            fontSize: 12,
+            fontSize: 15,
             fontWeight: FontWeight.w700,
-            color: AppConstants.textSecondary,
+            color: Colors.white70,
             letterSpacing: 2.0,
           ),
         ),
         centerTitle: true,
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(24, 8, 24, 40),
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
         children: [
           // ── Section: Permissions ────────────────────────────────────
           _SectionLabel(label: 'PERMISSIONS'),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
 
           _PermissionTile(
             icon: Icons.security_rounded,
@@ -101,7 +101,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                   },
           ),
 
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
 
           _PermissionTile(
             icon: Icons.accessibility_new_rounded,
@@ -118,32 +118,32 @@ class _SettingsScreenState extends State<SettingsScreen>
                 : 'Find "Blockit Accessibility" in the list and enable it',
           ),
 
-          const SizedBox(height: 32),
+          const SizedBox(height: 40),
 
           // ── Section: Parachute ──────────────────────────────────────
           _SectionLabel(label: 'PARACHUTE'),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
 
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppConstants.borderColor),
+              color: const Color(0xFF1A1A1A),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFF2A2A2A)),
             ),
             child: Row(
               children: [
                 Container(
-                  width: 44,
-                  height: 44,
+                  width: 52,
+                  height: 52,
                   decoration: BoxDecoration(
-                    color: AppConstants.primaryOrange.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
+                    color: AppConstants.primaryOrange.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                   child: const Icon(Icons.flight_takeoff_rounded,
-                      color: AppConstants.primaryOrange, size: 22),
+                      color: AppConstants.primaryOrange, size: 26),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 20),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -151,17 +151,18 @@ class _SettingsScreenState extends State<SettingsScreen>
                       const Text(
                         'Emergency exit',
                         style: TextStyle(
-                          fontSize: 15,
+                          fontSize: 17,
                           fontWeight: FontWeight.w600,
-                          color: AppConstants.textPrimary,
+                          color: Colors.white,
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 4),
                       Text(
                         'You get one free parachute per session',
                         style: TextStyle(
-                          fontSize: 12,
-                          color: AppConstants.textSecondary,
+                          fontSize: 14,
+                          color: Colors.white70,
+                          height: 1.4,
                         ),
                       ),
                     ],
@@ -170,22 +171,22 @@ class _SettingsScreenState extends State<SettingsScreen>
                 const SizedBox(width: 12),
                 // Usage badge
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
                     color: stats.parachutesUsed >= 1
-                        ? AppConstants.primaryOrange.withOpacity(0.1)
-                        : const Color(0xFFF0F0F0),
-                    borderRadius: BorderRadius.circular(8),
+                        ? AppConstants.primaryOrange.withOpacity(0.15)
+                        : const Color(0xFF2A2A2A),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
                     '${stats.parachutesUsed}/1',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 15,
                       fontWeight: FontWeight.w700,
                       color: stats.parachutesUsed >= 1
                           ? AppConstants.primaryOrange
-                          : AppConstants.textSecondary,
+                          : Colors.white70,
                     ),
                   ),
                 ),
@@ -194,19 +195,20 @@ class _SettingsScreenState extends State<SettingsScreen>
           ),
 
           if (stats.parachutesUsed >= 1) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: Row(
                 children: [
                   const Icon(Icons.info_outline_rounded,
-                      size: 13, color: AppConstants.primaryOrange),
-                  const SizedBox(width: 6),
-                  Text(
+                      size: 16, color: AppConstants.primaryOrange),
+                  const SizedBox(width: 8),
+                  const Text(
                     'Free parachute has been used.',
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 14,
                       color: AppConstants.primaryOrange,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
@@ -220,9 +222,9 @@ class _SettingsScreenState extends State<SettingsScreen>
 }
 
 // ── Section Label ─────────────────────────────────────────────────────────────
-
 class _SectionLabel extends StatelessWidget {
   final String label;
+
   const _SectionLabel({required this.label});
 
   @override
@@ -230,17 +232,16 @@ class _SectionLabel extends StatelessWidget {
     return Text(
       label,
       style: const TextStyle(
-        fontSize: 11,
+        fontSize: 13,
         fontWeight: FontWeight.w700,
-        color: AppConstants.textSecondary,
-        letterSpacing: 1.8,
+        color: Colors.white54,
+        letterSpacing: 2.0,
       ),
     );
   }
 }
 
 // ── Permission Tile ───────────────────────────────────────────────────────────
-
 class _PermissionTile extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -266,37 +267,37 @@ class _PermissionTile extends StatelessWidget {
         GestureDetector(
           onTap: onTap,
           child: Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius:
-                  BorderRadius.circular(hint != null && !isActive ? 12 : 16),
+              color: const Color(0xFF1A1A1A),
+              borderRadius: BorderRadius.circular(
+                  hint != null && !isActive ? 16 : 20),
               border: Border.all(
                 color: isActive
-                    ? const Color(0xFFE8F5E9)
-                    : AppConstants.borderColor,
+                    ? const Color(0xFF2E7D32).withOpacity(0.3)
+                    : const Color(0xFF2A2A2A),
               ),
             ),
             child: Row(
               children: [
                 Container(
-                  width: 44,
-                  height: 44,
+                  width: 52,
+                  height: 52,
                   decoration: BoxDecoration(
                     color: isActive
-                        ? const Color(0xFFE8F5E9)
-                        : const Color(0xFFF5F5F5),
-                    borderRadius: BorderRadius.circular(12),
+                        ? const Color(0xFF2E7D32).withOpacity(0.15)
+                        : const Color(0xFF2A2A2A),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                   child: Icon(
                     icon,
-                    size: 22,
+                    size: 26,
                     color: isActive
-                        ? AppConstants.successGreen
-                        : AppConstants.textSecondary,
+                        ? const Color(0xFF4CAF50)
+                        : Colors.white70,
                   ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 18),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -304,53 +305,54 @@ class _PermissionTile extends StatelessWidget {
                       Text(
                         title,
                         style: const TextStyle(
-                          fontSize: 15,
+                          fontSize: 17,
                           fontWeight: FontWeight.w600,
-                          color: AppConstants.textPrimary,
+                          color: Colors.white,
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 4),
                       Text(
                         subtitle,
                         style: const TextStyle(
-                          fontSize: 12,
-                          color: AppConstants.textSecondary,
+                          fontSize: 14,
+                          color: Colors.white70,
+                          height: 1.4,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 12),
                 if (isActive)
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 5),
+                        horizontal: 14, vertical: 6),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE8F5E9),
-                      borderRadius: BorderRadius.circular(8),
+                      color: const Color(0xFF2E7D32).withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Text(
                       'Active',
                       style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppConstants.successGreen,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF4CAF50),
                       ),
                     ),
                   )
                 else
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 5),
+                        horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
                       color: AppConstants.primaryOrange,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Text(
                       'Enable',
                       style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
                         color: Colors.white,
                       ),
                     ),
@@ -362,26 +364,25 @@ class _PermissionTile extends StatelessWidget {
         if (hint != null && !isActive)
           Container(
             width: double.infinity,
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
             decoration: const BoxDecoration(
-              color: Color(0xFFFFF8F0),
+              color: Color(0xFF2A2A2A),
               borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(12),
-                bottomRight: Radius.circular(12),
+                bottomLeft: Radius.circular(16),
+                bottomRight: Radius.circular(16),
               ),
               border: Border(
-                left: BorderSide(color: Color(0xFFFFE0B2)),
-                right: BorderSide(color: Color(0xFFFFE0B2)),
-                bottom: BorderSide(color: Color(0xFFFFE0B2)),
+                left: BorderSide(color: Color(0xFF3A3A3A)),
+                right: BorderSide(color: Color(0xFF3A3A3A)),
+                bottom: BorderSide(color: Color(0xFF3A3A3A)),
               ),
             ),
             child: Text(
               hint!,
-              style: const TextStyle(
-                fontSize: 12,
+              style: TextStyle(
+                fontSize: 13.5,
                 color: AppConstants.primaryOrange,
-                height: 1.4,
+                height: 1.5,
               ),
             ),
           ),

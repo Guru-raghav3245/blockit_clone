@@ -3,54 +3,59 @@ import 'package:flutter/services.dart';
 import '../constants/app_constants.dart';
 
 class AppTheme {
-  static ThemeData lightTheme = ThemeData(
+  static ThemeData darkTheme = ThemeData(
     useMaterial3: true,
+    brightness: Brightness.dark,
     colorScheme: ColorScheme.fromSeed(
       seedColor: AppConstants.primaryOrange,
-      brightness: Brightness.light,
+      brightness: Brightness.dark,
       primary: AppConstants.primaryOrange,
-      surface: Colors.white,
-      background: AppConstants.backgroundColor,
+      surface: const Color(0xFF121212),
+      background: const Color(0xFF0A0A0A),
+      onBackground: Colors.white,
     ),
-    scaffoldBackgroundColor: AppConstants.backgroundColor,
+    scaffoldBackgroundColor: const Color(0xFF0A0A0A),
     appBarTheme: const AppBarTheme(
-      backgroundColor: AppConstants.backgroundColor,
-      foregroundColor: AppConstants.textPrimary,
+      backgroundColor: Color(0xFF0A0A0A),
+      foregroundColor: Colors.white,
       elevation: 0,
       scrolledUnderElevation: 0,
-      centerTitle: false,
+      centerTitle: true,
       systemOverlayStyle: SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
+        statusBarIconBrightness: Brightness.light,
       ),
       titleTextStyle: TextStyle(
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: FontWeight.w700,
-        color: AppConstants.textPrimary,
-        letterSpacing: 1.5,
+        letterSpacing: 2.0,
+        color: Colors.white70,
       ),
     ),
     textTheme: const TextTheme(
       headlineLarge: TextStyle(
-        fontSize: 32,
-        fontWeight: FontWeight.w800,
-        color: AppConstants.textPrimary,
-        letterSpacing: -0.5,
+        fontSize: 92,
+        fontWeight: FontWeight.w300,
+        letterSpacing: -6,
+        color: Colors.white,
+        height: 1.0,
       ),
       headlineMedium: TextStyle(
-        fontSize: 22,
-        fontWeight: FontWeight.w700,
-        color: AppConstants.textPrimary,
+        fontSize: 28,
+        fontWeight: FontWeight.w400,
+        color: Colors.white,
       ),
       titleLarge: TextStyle(
-        fontSize: 18,
+        fontSize: 20,
         fontWeight: FontWeight.w600,
-        color: AppConstants.textPrimary,
+        color: Colors.white,
       ),
-      bodyMedium: TextStyle(
-        fontSize: 14,
-        color: AppConstants.textSecondary,
-        height: 1.5,
+      bodyMedium: TextStyle(fontSize: 15, color: Colors.white70, height: 1.5),
+      labelMedium: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 1.5,
+        color: Colors.white54,
       ),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
@@ -59,26 +64,24 @@ class AppTheme {
         foregroundColor: Colors.white,
         elevation: 0,
         shadowColor: Colors.transparent,
-        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 18),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(999), // pill shape
+        ),
         textStyle: const TextStyle(
           fontSize: 14,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 1.2,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 2.0,
         ),
       ),
     ),
     cardTheme: CardThemeData(
-      color: Colors.white,
+      color: const Color(0xFF1A1A1A),
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: Color(0xFFEEEEEE), width: 1),
+        side: const BorderSide(color: Color(0xFF2A2A2A), width: 1),
       ),
-    ),
-    dividerTheme: const DividerThemeData(
-      color: Color(0xFFF0F0F0),
-      thickness: 1,
     ),
   );
 }
