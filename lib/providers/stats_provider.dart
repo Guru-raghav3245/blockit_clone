@@ -21,6 +21,6 @@ class StatsProvider extends ChangeNotifier {
 
   Future<void> addSession(FreedomSession session) async {
     await LocalStorageService.saveSession(session);
-    await loadStats();
+    await loadStats();   // This refreshes parachutesUsed
   }
 }

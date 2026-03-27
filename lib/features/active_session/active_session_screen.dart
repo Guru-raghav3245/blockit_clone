@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/session_provider.dart';
+import '../../providers/stats_provider.dart';
 
 class ActiveSessionScreen extends StatelessWidget {
   const ActiveSessionScreen({super.key});
@@ -8,9 +9,12 @@ class ActiveSessionScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final sessionProvider = context.watch<SessionProvider>();
+    final statsProvider = context.watch<StatsProvider>();
 
-    return WillPopScope(
-      onWillPop: () async => false, // Prevent back button
+    final bool canUseParachute = statsProvider.parachutesUsed < 1;
+
+    return PopScope(
+      onPopInvoked: (didPop) async => false, // Prevent back button
       child: Scaffold(
         backgroundColor: Colors.black,
         body: SafeArea(
@@ -58,15 +62,16 @@ class ActiveSessionScreen extends StatelessWidget {
 
                   const SizedBox(height: 80),
 
-                  // Parachute Button (Emergency Exit)
-                  if (sessionProvider.isSessionActive)
+                  // Parachute Button - Only show if not used yet
+                  if (canUseParachute)
                     TextButton.icon(
                       onPressed: () {
                         showDialog(
                           context: context,
                           builder: (context) => AlertDialog(
                             backgroundColor: Colors.grey[900],
-                            title: const Text('Use Parachute?', style: TextStyle(color: Colors.white)),
+                            title: const Text('Use Parachute?', 
+                                style: TextStyle(color: Colors.white)),
                             content: const Text(
                               'This will end your freedom session early.\n\n'
                               'You have 1 free parachute.',
@@ -81,9 +86,9 @@ class ActiveSessionScreen extends StatelessWidget {
                                 onPressed: () {
                                   sessionProvider.emergencyStop(context);
                                   Navigator.pop(context);
-                                  Navigator.pop(context); // Go back to home
                                 },
-                                child: const Text('Use Parachute', style: TextStyle(color: Colors.orange)),
+                                child: const Text('Use Parachute', 
+                                    style: TextStyle(color: Colors.orange)),
                               ),
                             ],
                           ),
@@ -93,6 +98,18 @@ class ActiveSessionScreen extends StatelessWidget {
                       label: const Text(
                         'USE PARACHUTE',
                         style: TextStyle(color: Colors.orange, fontSize: 16),
+                      ),
+                    )
+                  else
+                    const Padding(
+                      padding: EdgeInsets.only(top: 20),
+                      child: Text(
+                        'You have already used your free parachute',
+                        style: TextStyle(
+                          color: Colors.orange,
+                          fontSize: 15,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
                     ),
                 ],
