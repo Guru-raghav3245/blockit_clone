@@ -18,8 +18,10 @@ class AnalogWheelPicker extends StatefulWidget {
 
 class _AnalogWheelPickerState extends State<AnalogWheelPicker> {
   late FixedExtentScrollController _controller;
-
   final List<int> _allMinutes = List.generate(120, (index) => index + 1);
+
+  // Use a flag to prevent setState during build
+  bool _isBuilding = true;
 
   @override
   void initState() {
@@ -27,6 +29,10 @@ class _AnalogWheelPickerState extends State<AnalogWheelPicker> {
     _controller = FixedExtentScrollController(
       initialItem: widget.selectedMinutes - 1,
     );
+    // Mark build as finished after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _isBuilding = false;
+    });
   }
 
   @override
@@ -41,14 +47,28 @@ class _AnalogWheelPickerState extends State<AnalogWheelPicker> {
     return minutes % 15 == 0 && minutes >= 15;
   }
 
+  void _safeHaptic(int minutes) {
+    if (_isBuilding) return; // Skip during build
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_isHighlightMinute(minutes)) {
+        Vibration.vibrate(duration: 45, amplitude: 110);
+      } else {
+        Vibration.vibrate(duration: 20);
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
+    _isBuilding = true; // Set flag at start of build
+
+    final widgetToBuild = SizedBox(
       height: 240,
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // Center highlight line
+          // Center highlight
           Container(
             height: 62,
             decoration: BoxDecoration(
@@ -70,12 +90,7 @@ class _AnalogWheelPickerState extends State<AnalogWheelPicker> {
             onSelectedItemChanged: (index) {
               final minutes = _allMinutes[index];
               widget.onDurationChanged(minutes);
-
-              if (_isHighlightMinute(minutes)) {
-                Vibration.vibrate(duration: 50, amplitude: 120);
-              } else {
-                Vibration.vibrate(duration: 25);
-              }
+              _safeHaptic(minutes);
             },
             childDelegate: ListWheelChildBuilderDelegate(
               builder: (context, index) {
@@ -139,6 +154,13 @@ class _AnalogWheelPickerState extends State<AnalogWheelPicker> {
         ],
       ),
     );
+
+    // Reset flag after build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _isBuilding = false;
+    });
+
+    return widgetToBuild;
   }
 
   @override
