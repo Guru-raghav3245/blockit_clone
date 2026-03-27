@@ -18,74 +18,52 @@ class AnalogWheelPicker extends StatefulWidget {
 
 class _AnalogWheelPickerState extends State<AnalogWheelPicker> {
   late FixedExtentScrollController _controller;
-  final List<int> _allMinutes = List.generate(120, (index) => index + 1);
-
-  // Use a flag to prevent setState during build
+  final List<int> _allMinutes = List.generate(180, (index) => index + 1);
   bool _isBuilding = true;
 
   @override
   void initState() {
     super.initState();
-    _controller = FixedExtentScrollController(
-      initialItem: widget.selectedMinutes - 1,
-    );
-    // Mark build as finished after first frame
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _isBuilding = false;
-    });
-  }
-
-  @override
-  void didUpdateWidget(covariant AnalogWheelPicker oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.selectedMinutes != oldWidget.selectedMinutes) {
-      _controller.jumpToItem(widget.selectedMinutes - 1);
-    }
-  }
-
-  bool _isHighlightMinute(int minutes) {
-    return minutes % 15 == 0 && minutes >= 15;
+    _controller = FixedExtentScrollController(initialItem: widget.selectedMinutes - 1);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _isBuilding = false);
   }
 
   void _safeHaptic(int minutes) {
-    if (_isBuilding) return; // Skip during build
-
+    if (_isBuilding) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_isHighlightMinute(minutes)) {
-        Vibration.vibrate(duration: 45, amplitude: 110);
+      if (minutes % 5 == 0) {
+        Vibration.vibrate(duration: 40, amplitude: 120);
       } else {
-        Vibration.vibrate(duration: 20);
+        Vibration.vibrate(duration: 15, amplitude: 50);
       }
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    _isBuilding = true; // Set flag at start of build
+    _isBuilding = true;
 
     final widgetToBuild = SizedBox(
-      height: 240,
+      height: 200,
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // Center highlight
+          // Center Selector Frame (Teenage Engineering Style)
           Container(
-            height: 62,
+            height: 70,
             decoration: BoxDecoration(
+              color: const Color(0xFF141414),
               border: Border.symmetric(
-                horizontal: BorderSide(
-                  color: AppConstants.primaryOrange.withOpacity(0.3),
-                  width: 2,
-                ),
+                horizontal: BorderSide(color: AppConstants.primaryOrange.withOpacity(0.5), width: 2),
               ),
             ),
           ),
 
           ListWheelScrollView.useDelegate(
             controller: _controller,
-            itemExtent: 58,
-            perspective: 0.006,
-            diameterRatio: 1.8,
+            itemExtent: 65,
+            perspective: 0.005,
+            diameterRatio: 2.0,
             physics: const FixedExtentScrollPhysics(),
             onSelectedItemChanged: (index) {
               final minutes = _allMinutes[index];
@@ -96,23 +74,16 @@ class _AnalogWheelPickerState extends State<AnalogWheelPicker> {
               builder: (context, index) {
                 final minutes = _allMinutes[index];
                 final bool isSelected = minutes == widget.selectedMinutes;
-                final bool isHighlight = _isHighlightMinute(minutes);
 
                 return Center(
-                  child: AnimatedDefaultTextStyle(
-                    duration: const Duration(milliseconds: 180),
+                  child: Text(
+                    minutes.toString().padLeft(2, '0'),
                     style: TextStyle(
-                      fontSize: isSelected ? 48 : (isHighlight ? 34 : 26),
-                      fontWeight: isSelected 
-                          ? FontWeight.bold 
-                          : (isHighlight ? FontWeight.w600 : FontWeight.w400),
-                      color: isSelected 
-                          ? AppConstants.primaryOrange 
-                          : (isHighlight 
-                              ? AppConstants.primaryOrange.withOpacity(0.85) 
-                              : AppConstants.textSecondary),
+                      fontSize: isSelected ? 42 : 28,
+                      fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+                      color: isSelected ? AppConstants.primaryOrange : const Color(0xFF444444),
+                      fontFeatures: const [FontFeature.tabularFigures()],
                     ),
-                    child: Text('$minutes'),
                   ),
                 );
               },
@@ -120,33 +91,25 @@ class _AnalogWheelPickerState extends State<AnalogWheelPicker> {
             ),
           ),
 
-          // Fade gradients
+          // Aggressive OLED Fade Gradients
           Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 50,
+            top: 0, left: 0, right: 0, height: 65,
             child: Container(
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [AppConstants.backgroundColor, Colors.transparent],
+                  begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                  colors: [Color(0xFF000000), Colors.transparent],
                 ),
               ),
             ),
           ),
           Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: 50,
+            bottom: 0, left: 0, right: 0, height: 65,
             child: Container(
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 gradient: LinearGradient(
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
-                  colors: [AppConstants.backgroundColor, Colors.transparent],
+                  begin: Alignment.bottomCenter, end: Alignment.topCenter,
+                  colors: [Color(0xFF000000), Colors.transparent],
                 ),
               ),
             ),
@@ -155,17 +118,7 @@ class _AnalogWheelPickerState extends State<AnalogWheelPicker> {
       ),
     );
 
-    // Reset flag after build
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _isBuilding = false;
-    });
-
+    WidgetsBinding.instance.addPostFrameCallback((_) => _isBuilding = false);
     return widgetToBuild;
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
   }
 }
