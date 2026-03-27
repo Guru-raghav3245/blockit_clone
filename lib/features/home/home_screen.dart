@@ -1,12 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../core/constants/app_constants.dart';
 import '../../providers/session_provider.dart';
-import '../../core/utils/platform_channel_helper.dart';
-import 'widgets/analog_wheel_picker.dart';
-import 'widgets/start_session_button.dart';
-import '../settings/settings_screen.dart';
-import '../stats/stats_screen.dart';
+import '../../core/constants/app_constants.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,41 +10,8 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
+class _HomeScreenState extends State<HomeScreen> {
   int _selectedDuration = 30;
-  bool _isAccessibilityEnabled = false;
-  bool _isDeviceAdminActive = false;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    _checkStatuses();
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _checkStatuses();
-  }
-
-  Future<void> _checkStatuses() async {
-    final admin = await PlatformChannelHelper.isDeviceAdminActive();
-    final accessibility = await PlatformChannelHelper.isAccessibilityServiceEnabled();
-    if (mounted) {
-      setState(() {
-        _isDeviceAdminActive = admin;
-        _isAccessibilityEnabled = accessibility;
-      });
-    }
-  }
-
-  bool get _isFullySetup => _isDeviceAdminActive && _isAccessibilityEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -58,212 +20,199 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return Scaffold(
       backgroundColor: const Color(0xFF0A0A0A),
       body: SafeArea(
-        child: Column(
-          children: [
-            // Top Bar
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 12),
-              child: Row(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              /// HEADER
+              Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
-                    'blockit',
+                    "blockit",
                     style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w900,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
                       color: Colors.white,
-                      letterSpacing: -1.0,
                     ),
                   ),
-                  Row(
-                    children: [
-                      _TopBarButton(
-                        icon: Icons.bar_chart_rounded,
-                        onTap: () => Navigator.push(
-                            context, MaterialPageRoute(builder: (_) => const StatsScreen())),
-                      ),
-                      const SizedBox(width: 12),
-                      _TopBarButton(
-                        icon: Icons.settings_outlined,
-                        onTap: () async {
-                          await Navigator.push(
-                              context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
-                          _checkStatuses();
-                        },
-                        showDot: !_isFullySetup,
-                      ),
-                    ],
-                  ),
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1A1A1A),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white10),
+                    ),
+                    child: const Icon(Icons.person, color: Colors.white70),
+                  )
                 ],
               ),
-            ),
 
-            if (!_isFullySetup)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
-                child: _SetupBanner(
-                  isDeviceAdminActive: _isDeviceAdminActive,
-                  isAccessibilityEnabled: _isAccessibilityEnabled,
-                  onTap: () async {
-                    await Navigator.push(context,
-                        MaterialPageRoute(builder: (_) => const SettingsScreen()));
-                    _checkStatuses();
-                  },
+              const SizedBox(height: 24),
+
+              /// TIMER CARD
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF141414),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: Colors.white10),
                 ),
-              ),
+                child: Row(
+                  children: [
+                    /// TIME + LABEL
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _formatTime(_selectedDuration),
+                            style: const TextStyle(
+                              fontSize: 48,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 2,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
 
-            const Spacer(),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Text(
+                              "Easy",
+                              style: TextStyle(
+                                color: Colors.black,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          )
+                        ],
+                      ),
+                    ),
 
-            // Large Timer Display
-            Text(
-              '$_selectedDuration',
-              style: const TextStyle(
-                fontSize: 110,
-                fontWeight: FontWeight.w300,
-                color: Colors.white,
-                height: 1.0,
-                letterSpacing: -8,
-              ),
-            ),
-            const Text(
-              'MINUTES',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 3.5,
-                color: Colors.white54,
-              ),
-            ),
-
-            const SizedBox(height: 32),
-
-            // Analog Wheel Picker
-            AnalogWheelPicker(
-              selectedMinutes: _selectedDuration,
-              onDurationChanged: (minutes) => setState(() => _selectedDuration = minutes),
-            ),
-
-            const Spacer(),
-
-            // Start Button
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: StartSessionButton(
-                onPressed: () async {
-                  final success = await sessionProvider.startSession(
-                      _selectedDuration, context);
-                  if (!success && mounted) {
-                    final accessOk = await PlatformChannelHelper.isAccessibilityServiceEnabled();
-                    if (accessOk) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Activate Device Admin in Settings first'),
-                          backgroundColor: Color(0xFF1A1A1A),
-                          behavior: SnackBarBehavior.floating,
+                    /// VERTICAL PROGRESS BAR
+                    Container(
+                      width: 36,
+                      height: 130,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF222222),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      alignment: Alignment.bottomCenter,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        height: (_selectedDuration / 180) * 130,
+                        width: 6,
+                        decoration: BoxDecoration(
+                          color: AppConstants.primaryOrange,
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                      );
-                    }
-                  }
-                },
-                isLoading: sessionProvider.isLocking,
+                      ),
+                    )
+                  ],
+                ),
               ),
-            ),
 
-            const SizedBox(height: 48),
-          ],
-        ),
-      ),
-    );
-  }
-}
+              const SizedBox(height: 24),
 
-// Top Bar Button
-class _TopBarButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-  final bool showDot;
+              /// PRESET GRID
+              Expanded(
+                child: GridView.count(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 16,
+                  crossAxisSpacing: 16,
+                  childAspectRatio: 1.3,
+                  children: [
+                    _timeCard(15),
+                    _timeCard(30),
+                    _timeCard(60),
+                    _timeCard(120),
+                    _timeCard(180),
+                  ],
+                ),
+              ),
 
-  const _TopBarButton({required this.icon, required this.onTap, this.showDot = false});
+              const SizedBox(height: 10),
 
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: const Color(0xFF1A1A1A),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.white.withOpacity(0.1)),
-            ),
-            child: Icon(icon, size: 22, color: Colors.white),
+              /// START BUTTON
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    await sessionProvider.startSession(
+                        _selectedDuration, context);
+                  },
+                  child: sessionProvider.isLocking
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text("START"),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+            ],
           ),
-          if (showDot)
-            Positioned(
-              top: -3,
-              right: -3,
-              child: Container(
-                width: 10,
-                height: 10,
-                decoration: const BoxDecoration(
-                  color: AppConstants.primaryOrange,
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ),
-        ],
+        ),
       ),
     );
   }
-}
 
-// Setup Banner
-class _SetupBanner extends StatelessWidget {
-  final bool isDeviceAdminActive;
-  final bool isAccessibilityEnabled;
-  final VoidCallback onTap;
+  /// FORMAT TIME → 00:30 / 01:00
+  String _formatTime(int minutes) {
+    final m = minutes % 60;
+    final h = minutes ~/ 60;
 
-  const _SetupBanner({
-    required this.isDeviceAdminActive,
-    required this.isAccessibilityEnabled,
-    required this.onTap,
-  });
+    if (h == 0) {
+      return "00:${m.toString().padLeft(2, '0')}";
+    }
+    return "${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}";
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    final List<String> missing = [];
-    if (!isDeviceAdminActive) missing.add('Device Admin');
-    if (!isAccessibilityEnabled) missing.add('Accessibility');
+  /// TIME PRESET CARD
+  Widget _timeCard(int minutes) {
+    final isSelected = _selectedDuration == minutes;
 
     return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+      onTap: () => setState(() => _selectedDuration = minutes),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFF3E0).withOpacity(0.12),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppConstants.primaryOrange.withOpacity(0.3)),
+          color: isSelected
+              ? AppConstants.primaryOrange.withOpacity(0.15)
+              : const Color(0xFF141414),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected
+                ? AppConstants.primaryOrange
+                : Colors.white10,
+          ),
         ),
-        child: Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: AppConstants.primaryOrange, size: 20),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                '${missing.join(' & ')} not set up — tap to fix',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white70,
-                ),
-              ),
+        child: Center(
+          child: Text(
+            minutes >= 60
+                ? "${minutes ~/ 60} Hour${minutes >= 120 ? "s" : ""}"
+                : "$minutes Minutes",
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: isSelected
+                  ? AppConstants.primaryOrange
+                  : Colors.white70,
             ),
-            Icon(Icons.chevron_right_rounded, color: AppConstants.primaryOrange, size: 20),
-          ],
+          ),
         ),
       ),
     );
