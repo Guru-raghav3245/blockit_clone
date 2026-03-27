@@ -11,18 +11,42 @@ class SettingsScreen extends StatefulWidget {
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends State<SettingsScreen>
+    with WidgetsBindingObserver {
   bool _isDeviceAdminActive = false;
+  bool _isAccessibilityEnabled = false;
 
   @override
   void initState() {
     super.initState();
-    _checkDeviceAdminStatus();
+    WidgetsBinding.instance.addObserver(this);
+    _checkStatuses();
   }
 
-  Future<void> _checkDeviceAdminStatus() async {
-    final active = await PlatformChannelHelper.isDeviceAdminActive();
-    if (mounted) setState(() => _isDeviceAdminActive = active);
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  // Re-check when user returns from Android Settings
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkStatuses();
+    }
+  }
+
+  Future<void> _checkStatuses() async {
+    final admin = await PlatformChannelHelper.isDeviceAdminActive();
+    final accessibility =
+        await PlatformChannelHelper.isAccessibilityServiceEnabled();
+    if (mounted) {
+      setState(() {
+        _isDeviceAdminActive = admin;
+        _isAccessibilityEnabled = accessibility;
+      });
+    }
   }
 
   Future<void> _activateDeviceAdmin() async {
@@ -37,14 +61,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
           '3. Enable "blockit_clone"',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
               await PlatformChannelHelper.startLockTask();
-              await _checkDeviceAdminStatus();
+              await _checkStatuses();
             },
-            child: const Text('Activate', style: TextStyle(color: AppConstants.primaryOrange)),
+            child: const Text('Activate',
+                style: TextStyle(color: AppConstants.primaryOrange)),
           ),
         ],
       ),
@@ -60,6 +87,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(24),
         children: [
+          // ── Device Admin Card ──────────────────────────────────────────
           Card(
             elevation: 2,
             child: Padding(
@@ -70,8 +98,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Row(
                     children: [
                       Icon(
-                        _isDeviceAdminActive ? Icons.verified : Icons.security,
-                        color: _isDeviceAdminActive ? Colors.green : AppConstants.primaryOrange,
+                        _isDeviceAdminActive
+                            ? Icons.verified
+                            : Icons.security,
+                        color: _isDeviceAdminActive
+                            ? Colors.green
+                            : AppConstants.primaryOrange,
                         size: 32,
                       ),
                       const SizedBox(width: 16),
@@ -79,7 +111,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Device Admin', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                            Text('Device Admin',
+                                style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold)),
                             Text('Required for complete phone lock'),
                           ],
                         ),
@@ -90,11 +125,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: _isDeviceAdminActive ? null : _activateDeviceAdmin,
+                      onPressed:
+                          _isDeviceAdminActive ? null : _activateDeviceAdmin,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _isDeviceAdminActive ? Colors.green : AppConstants.primaryOrange,
+                        backgroundColor: _isDeviceAdminActive
+                            ? Colors.green
+                            : AppConstants.primaryOrange,
                       ),
-                      child: Text(_isDeviceAdminActive ? 'Device Admin Active' : 'Activate Device Admin'),
+                      child: Text(_isDeviceAdminActive
+                          ? 'Device Admin Active ✓'
+                          : 'Activate Device Admin'),
                     ),
                   ),
                 ],
@@ -102,17 +142,88 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
 
+          const SizedBox(height: 16),
+
+          // ── Accessibility Service Card ─────────────────────────────────
+          Card(
+            elevation: 2,
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        _isAccessibilityEnabled
+                            ? Icons.verified
+                            : Icons.accessibility_new,
+                        color: _isAccessibilityEnabled
+                            ? Colors.green
+                            : AppConstants.primaryOrange,
+                        size: 32,
+                      ),
+                      const SizedBox(width: 16),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Accessibility Service',
+                                style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold)),
+                            Text('Required to block swipe gestures'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _isAccessibilityEnabled
+                          ? null
+                          : () async {
+                              await PlatformChannelHelper
+                                  .openAccessibilitySettings();
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _isAccessibilityEnabled
+                            ? Colors.green
+                            : AppConstants.primaryOrange,
+                      ),
+                      child: Text(_isAccessibilityEnabled
+                          ? 'Accessibility Active ✓'
+                          : 'Enable Accessibility Service'),
+                    ),
+                  ),
+                  if (!_isAccessibilityEnabled)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 10),
+                      child: Text(
+                        'Find "Blockit Accessibility" in the list and toggle it on.',
+                        style:
+                            TextStyle(fontSize: 12, color: AppConstants.textSecondary),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+
           const SizedBox(height: 24),
 
-          // Parachute Card
+          // ── Parachute Card ─────────────────────────────────────────────
           Card(
             child: Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Parachute (Emergency Exit)', 
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Text('Parachute (Emergency Exit)',
+                      style: TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   const Text('You get 1 free parachute to exit a session early.'),
                   const SizedBox(height: 16),
@@ -124,7 +235,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: stats.parachutesUsed >= 1 ? Colors.orange : AppConstants.textPrimary,
+                          color: stats.parachutesUsed >= 1
+                              ? Colors.orange
+                              : AppConstants.textPrimary,
                         ),
                       ),
                     ],
@@ -132,7 +245,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   if (stats.parachutesUsed >= 1)
                     const Padding(
                       padding: EdgeInsets.only(top: 8),
-                      child: Text('You have used your free parachute.', 
+                      child: Text('You have used your free parachute.',
                           style: TextStyle(color: Colors.orange)),
                     ),
                 ],

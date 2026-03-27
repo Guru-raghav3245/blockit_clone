@@ -32,4 +32,23 @@ class PlatformChannelHelper {
       return false;
     }
   }
+
+  static Future<bool> isAccessibilityServiceEnabled() async {
+    try {
+      final result =
+          await _channel.invokeMethod<bool>('isAccessibilityServiceEnabled');
+      return result ?? false;
+    } on PlatformException catch (e) {
+      print('Failed to check accessibility: ${e.message}');
+      return false;
+    }
+  }
+
+  static Future<void> openAccessibilitySettings() async {
+    try {
+      await _channel.invokeMethod('openAccessibilitySettings');
+    } on PlatformException catch (e) {
+      print('Failed to open accessibility settings: ${e.message}');
+    }
+  }
 }

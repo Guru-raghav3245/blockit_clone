@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import '../core/utils/platform_channel_helper.dart';
+import '../core/constants/app_constants.dart';
 import '../models/freedom_session.dart';
 import 'stats_provider.dart';
 import 'package:provider/provider.dart';
@@ -27,6 +28,17 @@ class SessionProvider extends ChangeNotifier {
   Future<bool> startSession(int durationMinutes, BuildContext context) async {
     if (_isSessionActive) return false;
 
+    // Check accessibility service first
+    final bool accessibilityEnabled =
+        await PlatformChannelHelper.isAccessibilityServiceEnabled();
+
+    if (!accessibilityEnabled) {
+      if (context.mounted) {
+        await _showAccessibilityDialog(context);
+      }
+      return false;
+    }
+
     _isLocking = true;
     notifyListeners();
 
@@ -40,10 +52,12 @@ class SessionProvider extends ChangeNotifier {
 
       notifyListeners();
 
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const ActiveSessionScreen()),
-      );
+      if (context.mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ActiveSessionScreen()),
+        );
+      }
 
       _startTimer(context);
       return true;
@@ -52,6 +66,36 @@ class SessionProvider extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+  }
+
+  Future<void> _showAccessibilityDialog(BuildContext context) async {
+    return showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Enable Accessibility Service'),
+        content: const Text(
+          'Blockit needs Accessibility permission to fully lock your phone '
+          'and prevent swipe gestures from escaping.\n\n'
+          'Tap Enable, then find "Blockit Accessibility" and turn it on.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await PlatformChannelHelper.openAccessibilitySettings();
+            },
+            child: const Text(
+              'Enable',
+              style: TextStyle(color: AppConstants.primaryOrange),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _startTimer(BuildContext context) {
@@ -81,7 +125,9 @@ class SessionProvider extends ChangeNotifier {
       usedParachute: false,
     );
 
-    await context.read<StatsProvider>().addSession(session);
+    if (context.mounted) {
+      await context.read<StatsProvider>().addSession(session);
+    }
     await PlatformChannelHelper.stopLockTask();
 
     notifyListeners();
@@ -106,8 +152,10 @@ class SessionProvider extends ChangeNotifier {
       usedParachute: true,
     );
 
-    await context.read<StatsProvider>().addSession(session);
-    await LocalStorageService.incrementParachutesUsed();   // Fixed here
+    if (context.mounted) {
+      await context.read<StatsProvider>().addSession(session);
+    }
+    await LocalStorageService.incrementParachutesUsed();
     await PlatformChannelHelper.stopLockTask();
 
     notifyListeners();
