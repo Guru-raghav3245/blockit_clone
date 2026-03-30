@@ -57,19 +57,7 @@ class _SettingsScreenState extends State<SettingsScreen>
         backgroundColor: const Color(0xFF0A0A0A),
         elevation: 0,
         scrolledUnderElevation: 0,
-        leading: GestureDetector(
-          onTap: () => Navigator.pop(context),
-          child: Container(
-            margin: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1A1A1A),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF2A2A2A)),
-            ),
-            child: const Icon(Icons.arrow_back_rounded,
-                size: 20, color: Colors.white),
-          ),
-        ),
+        automaticallyImplyLeading: false, // Hidden back button
         title: const Text(
           'SETTINGS',
           style: TextStyle(
@@ -82,10 +70,10 @@ class _SettingsScreenState extends State<SettingsScreen>
         centerTitle: true,
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
+        // Added 110 bottom padding so the floating pill doesn't hide content
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 110),
         children: [
-          // ── Section: Permissions ────────────────────────────────────
-          _SectionLabel(label: 'PERMISSIONS'),
+          const _SectionLabel(label: 'PERMISSIONS'),
           const SizedBox(height: 16),
 
           _PermissionTile(
@@ -120,8 +108,7 @@ class _SettingsScreenState extends State<SettingsScreen>
 
           const SizedBox(height: 40),
 
-          // ── Section: Parachute ──────────────────────────────────────
-          _SectionLabel(label: 'PARACHUTE'),
+          const _SectionLabel(label: 'PARACHUTE'),
           const SizedBox(height: 16),
 
           Container(
@@ -140,15 +127,18 @@ class _SettingsScreenState extends State<SettingsScreen>
                     color: AppConstants.primaryOrange.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: const Icon(Icons.flight_takeoff_rounded,
-                      color: AppConstants.primaryOrange, size: 26),
+                  child: const Icon(
+                    Icons.flight_takeoff_rounded,
+                    color: AppConstants.primaryOrange,
+                    size: 26,
+                  ),
                 ),
                 const SizedBox(width: 20),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
+                    children: const [
+                      Text(
                         'Emergency exit',
                         style: TextStyle(
                           fontSize: 17,
@@ -156,7 +146,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                           color: Colors.white,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      SizedBox(height: 4),
                       Text(
                         'You get one free parachute per session',
                         style: TextStyle(
@@ -169,10 +159,11 @@ class _SettingsScreenState extends State<SettingsScreen>
                   ),
                 ),
                 const SizedBox(width: 12),
-                // Usage badge
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 8),
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: stats.parachutesUsed >= 1
                         ? AppConstants.primaryOrange.withOpacity(0.15)
@@ -199,11 +190,14 @@ class _SettingsScreenState extends State<SettingsScreen>
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: Row(
-                children: [
-                  const Icon(Icons.info_outline_rounded,
-                      size: 16, color: AppConstants.primaryOrange),
-                  const SizedBox(width: 8),
-                  const Text(
+                children: const [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    size: 16,
+                    color: AppConstants.primaryOrange,
+                  ),
+                  SizedBox(width: 8),
+                  Text(
                     'Free parachute has been used.',
                     style: TextStyle(
                       fontSize: 14,
@@ -221,10 +215,8 @@ class _SettingsScreenState extends State<SettingsScreen>
   }
 }
 
-// ── Section Label ─────────────────────────────────────────────────────────────
 class _SectionLabel extends StatelessWidget {
   final String label;
-
   const _SectionLabel({required this.label});
 
   @override
@@ -241,7 +233,6 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-// ── Permission Tile ───────────────────────────────────────────────────────────
 class _PermissionTile extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -271,7 +262,8 @@ class _PermissionTile extends StatelessWidget {
             decoration: BoxDecoration(
               color: const Color(0xFF1A1A1A),
               borderRadius: BorderRadius.circular(
-                  hint != null && !isActive ? 16 : 20),
+                hint != null && !isActive ? 16 : 20,
+              ),
               border: Border.all(
                 color: isActive
                     ? const Color(0xFF2E7D32).withOpacity(0.3)
@@ -292,9 +284,7 @@ class _PermissionTile extends StatelessWidget {
                   child: Icon(
                     icon,
                     size: 26,
-                    color: isActive
-                        ? const Color(0xFF4CAF50)
-                        : Colors.white70,
+                    color: isActive ? const Color(0xFF4CAF50) : Colors.white70,
                   ),
                 ),
                 const SizedBox(width: 18),
@@ -326,7 +316,9 @@ class _PermissionTile extends StatelessWidget {
                 if (isActive)
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 6),
+                      horizontal: 14,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFF2E7D32).withOpacity(0.2),
                       borderRadius: BorderRadius.circular(10),
@@ -343,7 +335,9 @@ class _PermissionTile extends StatelessWidget {
                 else
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 8),
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: AppConstants.primaryOrange,
                       borderRadius: BorderRadius.circular(10),
@@ -379,7 +373,7 @@ class _PermissionTile extends StatelessWidget {
             ),
             child: Text(
               hint!,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 13.5,
                 color: AppConstants.primaryOrange,
                 height: 1.5,

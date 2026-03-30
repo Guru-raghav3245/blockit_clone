@@ -14,9 +14,9 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedDuration = 15;
+  int _currentIndex = 0; // 0: Home, 1: Stats, 2: Settings
   late FixedExtentScrollController _wheelController;
 
-  // Exact Background Colors from the screenshot
   final Color bgColor = const Color(0xFF151211);
   final Color cardColor = const Color(0xFF1E1B1A);
   final Color borderColor = const Color(0xFF332D2D);
@@ -24,7 +24,9 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _wheelController = FixedExtentScrollController(initialItem: _selectedDuration - 1);
+    _wheelController = FixedExtentScrollController(
+      initialItem: _selectedDuration - 1,
+    );
   }
 
   @override
@@ -33,12 +35,11 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  // ─── DYNAMIC COLOR & LABEL SYSTEM ───────────────────────────────────────────
   Color get _accentColor {
-    if (_selectedDuration < 30) return const Color(0xFFDCD0C7); // Easy: Grey/White
-    if (_selectedDuration < 60) return const Color(0xFFEED2C2); // Intermediate: Beige
-    if (_selectedDuration < 120) return const Color(0xFFE49F80); // Hard: Peach/Orange
-    return const Color(0xFFD85C3A); // Extreme: Deep Red/Orange
+    if (_selectedDuration < 30) return const Color(0xFFDCD0C7);
+    if (_selectedDuration < 60) return const Color(0xFFEED2C2);
+    if (_selectedDuration < 120) return const Color(0xFFE49F80);
+    return const Color(0xFFD85C3A);
   }
 
   String get _difficultyLabel {
@@ -50,7 +51,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _updateDuration(int newDuration) {
     setState(() => _selectedDuration = newDuration);
-    if (_wheelController.hasClients && _wheelController.selectedItem != (newDuration - 1)) {
+    if (_wheelController.hasClients &&
+        _wheelController.selectedItem != (newDuration - 1)) {
       _wheelController.animateToItem(
         newDuration - 1,
         duration: const Duration(milliseconds: 400),
@@ -65,52 +67,170 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       backgroundColor: bgColor,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Column(
-            children: [
-              const SizedBox(height: 10),
-              _buildTopBar(),
-              const SizedBox(height: 16),
-              
-              // TOP HALF: The Absolute Display
-              Expanded(
-                flex: 4,
-                child: _buildBigDisplayCard(),
-              ),
-              
-              const SizedBox(height: 12),
-              
-              // BOTTOM HALF: Asymmetric Grid + Thumbwheel
-              Expanded(
-                flex: 5,
-                child: Row(
-                  children: [
-                    Expanded(
-                      flex: 13,
-                      child: _buildAsymmetricGrid(),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      flex: 4,
-                      child: _buildThumbwheel(),
-                    ),
-                  ],
-                ),
-              ),
-              
-              // BOTTOM NAVIGATION
-              _buildBottomNav(sessionProvider),
-              const SizedBox(height: 10),
-            ],
+      // The body is a Stack: Screen content on the bottom, Floating UI on top
+      body: Stack(
+        children: [
+          // ─── LAYER 1: The Screens (IndexedStack) ──────────────────────────
+          Positioned.fill(
+            child: IndexedStack(
+              index: _currentIndex,
+              children: [
+                _buildHomeContent(sessionProvider),
+                const StatsScreen(),
+                const SettingsScreen(),
+              ],
+            ),
           ),
+
+          // ─── LAYER 2: Floating Navigation Pill & Play Button ────────────
+          Positioned(
+            left: 16,
+            right: 16,
+            bottom: 24, // Floats exactly above the bottom edge
+            child: SafeArea(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // FLOATING OVAL NAV CARD (Always Visible)
+                  _buildFloatingNavPill(),
+
+                  // FLOATING PLAY BUTTON (Visible only on Home Screen)
+                  if (_currentIndex == 0) _buildPlayButton(sessionProvider),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── MAIN HOME CONTENT ────────────────────────────────────────────────────
+  Widget _buildHomeContent(SessionProvider sessionProvider) {
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        child: Column(
+          children: [
+            const SizedBox(height: 10),
+            _buildTopBar(),
+            const SizedBox(height: 16),
+            Expanded(flex: 4, child: _buildBigDisplayCard()),
+            const SizedBox(height: 12),
+            Expanded(
+              flex: 5,
+              child: Row(
+                children: [
+                  Expanded(flex: 13, child: _buildAsymmetricGrid()),
+                  const SizedBox(width: 12),
+                  Expanded(flex: 4, child: _buildThumbwheel()),
+                ],
+              ),
+            ),
+            // Extra padding at the bottom so content isn't hidden behind the floating pill
+            const SizedBox(height: 90),
+          ],
         ),
       ),
     );
   }
 
-  // ─── UI COMPONENTS ────────────────────────────────────────────────────────
+  // ─── FLOATING WIDGETS ─────────────────────────────────────────────────────
+
+  Widget _buildFloatingNavPill() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      decoration: BoxDecoration(
+        color: cardColor, // Exact match to your screenshot style
+        borderRadius: BorderRadius.circular(40), // Oval shape
+        border: Border.all(color: borderColor, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildNavItem(0, Icons.timer_rounded),
+          const SizedBox(width: 4),
+          _buildNavItem(1, Icons.show_chart_rounded),
+          const SizedBox(width: 4),
+          _buildNavItem(2, Icons.settings_rounded),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNavItem(int index, IconData icon) {
+    final isSelected = _currentIndex == index;
+
+    return GestureDetector(
+      onTap: () => setState(() => _currentIndex = index),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isSelected ? _accentColor : Colors.transparent,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          icon,
+          color: isSelected ? Colors.black : Colors.white54,
+          size: 26,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlayButton(SessionProvider sessionProvider) {
+    return GestureDetector(
+      onTap: () async {
+        if (!sessionProvider.isLocking) {
+          await sessionProvider.startSession(_selectedDuration, context);
+        }
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        width: 76,
+        height: 64, // Matches the height of the pill nicely
+        decoration: BoxDecoration(
+          color: _accentColor,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: _accentColor.withOpacity(0.2),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: sessionProvider.isLocking
+            ? const Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    color: Colors.black,
+                    strokeWidth: 3,
+                  ),
+                ),
+              )
+            : const Icon(
+                Icons.play_arrow_rounded,
+                color: Colors.black,
+                size: 36,
+              ),
+      ),
+    );
+  }
+
+  // ─── EXISTING UI COMPONENTS ───────────────────────────────────────────────
 
   Widget _buildTopBar() {
     return Row(
@@ -119,14 +239,22 @@ class _HomeScreenState extends State<HomeScreen> {
         const SizedBox(width: 40),
         const Text(
           "blockit",
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: 2.0, color: Colors.white),
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 2.0,
+            color: Colors.white,
+          ),
         ),
         Container(
           width: 36,
           height: 36,
-          decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+          ),
           child: const Icon(Icons.person, color: Colors.black, size: 20),
-        )
+        ),
       ],
     );
   }
@@ -134,8 +262,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildBigDisplayCard() {
     final hours = (_selectedDuration ~/ 60).toString().padLeft(2, '0');
     final minutes = (_selectedDuration % 60).toString().padLeft(2, '0');
-    
-    // 0.0 is center, we map 0 to 180 mins from 1.0 (bottom) to -1.0 (top)
     double alignY = 1.0 - ((_selectedDuration / 180).clamp(0.0, 1.0) * 2.0);
 
     return AnimatedContainer(
@@ -149,7 +275,6 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Left: Giant Block Numbers
           Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -180,28 +305,19 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
-          
-          // Right: The Exact 13-Marker Ruler & Pointer
           SizedBox(
-            width: 140, 
+            width: 140,
             child: Stack(
               children: [
-                // Exact Ruler Scale (13 markers = every 15 mins up to 3 hours)
                 Align(
                   alignment: Alignment.centerRight,
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: List.generate(13, (index) {
-                      // index 0 is top (180 mins), index 12 is bottom (0 mins)
                       int markerMinute = (12 - index) * 15;
-                      
-                      // Long markers are strictly on the hour (0, 60, 120, 180)
                       bool isLong = markerMinute % 60 == 0;
-                      
-                      // Light up the marker if the duration has passed it
                       bool isActive = markerMinute <= _selectedDuration;
-                      
                       return AnimatedContainer(
                         duration: const Duration(milliseconds: 300),
                         width: isLong ? 12 : 6,
@@ -214,17 +330,18 @@ class _HomeScreenState extends State<HomeScreen> {
                     }),
                   ),
                 ),
-                
-                // The Dynamic Pointer Pill
                 AnimatedAlign(
                   duration: const Duration(milliseconds: 250),
                   curve: Curves.easeOut,
                   alignment: Alignment(1.0, alignY),
                   child: Padding(
-                    padding: const EdgeInsets.only(right: 18), 
+                    padding: const EdgeInsets.only(right: 18),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 300),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
                         color: _accentColor,
                         borderRadius: const BorderRadius.only(
@@ -247,7 +364,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ],
             ),
-          )
+          ),
         ],
       ),
     );
@@ -281,9 +398,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(width: 10),
-              Expanded(
-                child: _presetCard(180, "3\nHours"),
-              ),
+              Expanded(child: _presetCard(180, "3\nHours")),
             ],
           ),
         ),
@@ -293,9 +408,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _presetCard(int minutes, String label) {
     final isSelected = _selectedDuration == minutes;
-    
     return GestureDetector(
-      onTap: () => _updateDuration(minutes),
+      onTap: () {
+        if (_currentIndex != 0) setState(() => _currentIndex = 0);
+        _updateDuration(minutes);
+      },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
@@ -349,8 +466,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           width: isOrangeIndicator ? 28 : 16,
                           height: 3,
                           decoration: BoxDecoration(
-                            // The wheel always uses the primary orange to denote rotation distance
-                            color: isOrangeIndicator ? AppConstants.primaryOrange : Colors.white24,
+                            color: isOrangeIndicator
+                                ? AppConstants.primaryOrange
+                                : Colors.white24,
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),
@@ -362,9 +480,29 @@ class _HomeScreenState extends State<HomeScreen> {
                 IgnorePointer(
                   child: Column(
                     children: [
-                      Expanded(child: Container(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [bgColor, Colors.transparent])))),
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [bgColor, Colors.transparent],
+                            ),
+                          ),
+                        ),
+                      ),
                       const SizedBox(height: 100),
-                      Expanded(child: Container(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.bottomCenter, end: Alignment.topCenter, colors: [bgColor, Colors.transparent])))),
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.bottomCenter,
+                              end: Alignment.topCenter,
+                              colors: [bgColor, Colors.transparent],
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -372,12 +510,9 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ),
-        
         const SizedBox(height: 10),
-        
-        // Functional Arrows Container matching wheel width
         Container(
-          width: double.infinity, 
+          width: double.infinity,
           decoration: BoxDecoration(
             color: Colors.transparent,
             borderRadius: BorderRadius.circular(24),
@@ -387,93 +522,47 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               InkWell(
                 onTap: () {
-                  if (_selectedDuration < 180) _updateDuration(_selectedDuration + 1);
+                  if (_currentIndex != 0) setState(() => _currentIndex = 0);
+                  if (_selectedDuration < 180)
+                    _updateDuration(_selectedDuration + 1);
                 },
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(22),
+                ),
                 child: const SizedBox(
                   width: double.infinity,
                   height: 44,
-                  child: Icon(Icons.keyboard_arrow_up_rounded, color: Colors.white, size: 28),
+                  child: Icon(
+                    Icons.keyboard_arrow_up_rounded,
+                    color: Colors.white,
+                    size: 28,
+                  ),
                 ),
               ),
               Container(height: 2, color: borderColor),
               InkWell(
                 onTap: () {
-                  if (_selectedDuration > 1) _updateDuration(_selectedDuration - 1);
+                  if (_currentIndex != 0) setState(() => _currentIndex = 0);
+                  if (_selectedDuration > 1)
+                    _updateDuration(_selectedDuration - 1);
                 },
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(22)),
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(22),
+                ),
                 child: const SizedBox(
                   width: double.infinity,
                   height: 44,
-                  child: Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white, size: 28),
+                  child: Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: Colors.white,
+                    size: 28,
+                  ),
                 ),
               ),
             ],
           ),
-        )
+        ),
       ],
-    );
-  }
-
-  Widget _buildBottomNav(SessionProvider sessionProvider) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 16.0, bottom: 8.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: _accentColor, shape: BoxShape.circle),
-                child: const Icon(Icons.timer_rounded, color: Colors.black, size: 28),
-              ),
-              const SizedBox(width: 16),
-              GestureDetector(
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StatsScreen())),
-                child: AnimatedIcon(icon: Icons.show_chart_rounded, color: _accentColor),
-              ),
-              const SizedBox(width: 24),
-              GestureDetector(
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
-                child: AnimatedIcon(icon: Icons.settings_rounded, color: _accentColor),
-              ),
-            ],
-          ),
-          GestureDetector(
-            onTap: () async {
-               if (!sessionProvider.isLocking) {
-                 await sessionProvider.startSession(_selectedDuration, context);
-               }
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              width: 80,
-              height: 56,
-              decoration: BoxDecoration(color: _accentColor, borderRadius: BorderRadius.circular(20)),
-              child: sessionProvider.isLocking 
-                ? const Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 3)))
-                : const Icon(Icons.play_arrow_rounded, color: Colors.black, size: 36),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class AnimatedIcon extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-
-  const AnimatedIcon({super.key, required this.icon, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedTheme(
-      data: Theme.of(context).copyWith(iconTheme: IconThemeData(color: color)),
-      child: Icon(icon, size: 28),
     );
   }
 }
