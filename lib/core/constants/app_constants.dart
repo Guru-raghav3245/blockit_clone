@@ -11,18 +11,15 @@ class AppConstants {
   static const Color cardColor = Color(0xFF1E1B1A);
   static const Color surfaceColor = Color(0xFF1E1B1A);
   static const Color borderColor = Color(0xFF332D2D);
-  
+
   static const Color textPrimary = Colors.white;
   static const Color textSecondary = Colors.white70;
   static const Color textMuted = Colors.white54;
-  
+
   static const Color successGreen = Color(0xFF4CAF50);
 
   // Session durations
   static const List<int> presetDurationsMinutes = [15, 30, 45, 60, 90, 120];
-
-  // Parachute
-  static const int maxFreeParachutes = 1;
 
   // Storage keys
   static const String keyTotalSessions = 'total_sessions';

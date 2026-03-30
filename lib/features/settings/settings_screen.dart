@@ -136,7 +136,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                       ),
                       SizedBox(height: 4),
                       Text(
-                        'You get one free parachute per session',
+                        'End your session early if you need to',
                         style: TextStyle(
                           fontSize: 14,
                           color: AppConstants.textSecondary,
@@ -153,50 +153,22 @@ class _SettingsScreenState extends State<SettingsScreen>
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: stats.parachutesUsed >= 1
-                        ? AppConstants.primaryOrange.withOpacity(0.15)
-                        : AppConstants.borderColor,
+                    color: AppConstants.primaryOrange.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
-                    '${stats.parachutesUsed}/1',
-                    style: TextStyle(
+                    '${stats.parachutesUsed}', // Removed the "/1" limit
+                    style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: stats.parachutesUsed >= 1
-                          ? AppConstants.primaryOrange
-                          : AppConstants.textSecondary,
+                      color: AppConstants.primaryOrange,
                     ),
                   ),
                 ),
               ],
             ),
           ),
-
-          if (stats.parachutesUsed >= 1) ...[
-            const SizedBox(height: 12),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 4),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.info_outline_rounded,
-                    size: 16,
-                    color: AppConstants.primaryOrange,
-                  ),
-                  SizedBox(width: 8),
-                  Text(
-                    'Free parachute has been used.',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppConstants.primaryOrange,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+          // Removed the "Parachute used" warning message completely
         ],
       ),
     );

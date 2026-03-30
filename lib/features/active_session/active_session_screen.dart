@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/session_provider.dart';
-import '../../providers/stats_provider.dart';
 import '../../core/constants/app_constants.dart';
 
 class ActiveSessionScreen extends StatelessWidget {
@@ -10,8 +9,6 @@ class ActiveSessionScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final sessionProvider = context.watch<SessionProvider>();
-    final statsProvider = context.watch<StatsProvider>();
-    final bool canUseParachute = statsProvider.parachutesUsed < 1;
 
     return PopScope(
       canPop: false,
@@ -59,23 +56,14 @@ class ActiveSessionScreen extends StatelessWidget {
 
                 const Spacer(),
 
-                Container(
-                  width: 50,
-                  height: 1,
-                  color: const Color(0xFF333333),
-                ),
+                Container(width: 50, height: 1, color: const Color(0xFF333333)),
 
                 const SizedBox(height: 48),
 
-                if (canUseParachute)
-                  _ParachuteButton(
-                    onTap: () => _showParachuteDialog(context, sessionProvider),
-                  )
-                else
-                  const Text(
-                    'Parachute already used',
-                    style: TextStyle(fontSize: 14, color: Color(0xFF555555)),
-                  ),
+                // Button is now always available
+                _ParachuteButton(
+                  onTap: () => _showParachuteDialog(context, sessionProvider),
+                ),
 
                 const SizedBox(height: 60),
               ],
@@ -86,7 +74,10 @@ class ActiveSessionScreen extends StatelessWidget {
     );
   }
 
-  void _showParachuteDialog(BuildContext context, SessionProvider sessionProvider) {
+  void _showParachuteDialog(
+    BuildContext context,
+    SessionProvider sessionProvider,
+  ) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -107,8 +98,11 @@ class ActiveSessionScreen extends StatelessWidget {
                   color: AppConstants.primaryOrange.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: const Icon(Icons.flight_takeoff_rounded,
-                    color: AppConstants.primaryOrange, size: 28),
+                child: const Icon(
+                  Icons.flight_takeoff_rounded,
+                  color: AppConstants.primaryOrange,
+                  size: 28,
+                ),
               ),
               const SizedBox(height: 24),
               const Text(
@@ -121,8 +115,12 @@ class ActiveSessionScreen extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               const Text(
-                'This will end your session early.\nYou only get one — use it wisely.',
-                style: TextStyle(fontSize: 15, color: Colors.white70, height: 1.5),
+                'This will end your session early.', // Removed the "You only get one" text
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Colors.white70,
+                  height: 1.5,
+                ),
               ),
               const SizedBox(height: 32),
               Row(
@@ -139,7 +137,11 @@ class ActiveSessionScreen extends StatelessWidget {
                         alignment: Alignment.center,
                         child: const Text(
                           'Cancel',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white70),
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white70,
+                          ),
                         ),
                       ),
                     ),
@@ -160,7 +162,11 @@ class ActiveSessionScreen extends StatelessWidget {
                         alignment: Alignment.center,
                         child: const Text(
                           'Eject',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white),
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),
@@ -189,12 +195,18 @@ class _ParachuteButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: const Color(0xFF1F1F1F),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppConstants.primaryOrange.withOpacity(0.4)),
+          border: Border.all(
+            color: AppConstants.primaryOrange.withOpacity(0.4),
+          ),
         ),
         child: const Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.flight_takeoff_rounded, color: AppConstants.primaryOrange, size: 20),
+            Icon(
+              Icons.flight_takeoff_rounded,
+              color: AppConstants.primaryOrange,
+              size: 20,
+            ),
             SizedBox(width: 12),
             Text(
               'USE PARACHUTE',
