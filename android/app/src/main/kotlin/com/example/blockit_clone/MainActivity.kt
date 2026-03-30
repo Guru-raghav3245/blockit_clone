@@ -50,6 +50,19 @@ class MainActivity : FlutterActivity() {
                     startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
                     result.success(true)
                 }
+                // NEW: Force the screen to sleep
+                "turnOffScreen" -> {
+                    if (dpm.isAdminActive(adminComponent)) {
+                        try {
+                            dpm.lockNow()
+                            result.success(true)
+                        } catch (e: Exception) {
+                            result.error("LOCK_FAILED", "Could not turn off screen: ${e.message}", null)
+                        }
+                    } else {
+                        result.error("DEVICE_ADMIN_NOT_ACTIVE", "Device Admin is required to lock the screen", null)
+                    }
+                }
                 else -> result.notImplemented()
             }
         }

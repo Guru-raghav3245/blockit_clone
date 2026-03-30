@@ -1,8 +1,9 @@
 import 'package:flutter/services.dart';
 
 class PlatformChannelHelper {
-  static const MethodChannel _channel =
-      MethodChannel('com.blockit/device_admin');
+  static const MethodChannel _channel = MethodChannel(
+    'com.blockit/device_admin',
+  );
 
   static Future<bool> startLockTask() async {
     try {
@@ -26,8 +27,7 @@ class PlatformChannelHelper {
 
   static Future<bool> isDeviceAdminActive() async {
     try {
-      final result =
-          await _channel.invokeMethod<bool>('isDeviceAdminActive');
+      final result = await _channel.invokeMethod<bool>('isDeviceAdminActive');
       return result ?? false;
     } on PlatformException catch (e) {
       print('Failed to check device admin: ${e.message}');
@@ -37,8 +37,9 @@ class PlatformChannelHelper {
 
   static Future<bool> isAccessibilityServiceEnabled() async {
     try {
-      final result =
-          await _channel.invokeMethod<bool>('isAccessibilityServiceEnabled');
+      final result = await _channel.invokeMethod<bool>(
+        'isAccessibilityServiceEnabled',
+      );
       return result ?? false;
     } on PlatformException catch (e) {
       print('Failed to check accessibility: ${e.message}');
@@ -51,6 +52,15 @@ class PlatformChannelHelper {
       await _channel.invokeMethod('openAccessibilitySettings');
     } on PlatformException catch (e) {
       print('Failed to open accessibility settings: ${e.message}');
+    }
+  }
+
+  // NEW: Tells the Android native side to force the hardware screen to sleep
+  static Future<void> turnOffScreen() async {
+    try {
+      await _channel.invokeMethod('turnOffScreen');
+    } on PlatformException catch (e) {
+      print('Failed to turn off screen: ${e.message}');
     }
   }
 }
