@@ -15,6 +15,11 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedDuration = 15;
   int _currentIndex = 0;
+  int _statsTabIndex = 0;
+
+  // NEW: Controls the "Ping-Pong" toggle state when on the Stats screen
+  bool _isMainNavExpandedInStats = false;
+
   late FixedExtentScrollController _wheelController;
 
   @override
@@ -57,6 +62,13 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // Helper to determine which icon shows when the Secondary Pill is collapsed
+  IconData get _activeStatsIcon {
+    if (_statsTabIndex == 0) return Icons.grid_view_rounded;
+    if (_statsTabIndex == 1) return Icons.insights_rounded;
+    return Icons.history_rounded;
+  }
+
   @override
   Widget build(BuildContext context) {
     final sessionProvider = context.watch<SessionProvider>();
@@ -65,16 +77,19 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: AppConstants.backgroundColor,
       body: Stack(
         children: [
+          // ─── LAYER 1: Screens ───────────────────────────────────────────
           Positioned.fill(
             child: IndexedStack(
               index: _currentIndex,
               children: [
                 _buildHomeContent(sessionProvider),
-                const StatsScreen(),
+                StatsScreen(currentTab: _statsTabIndex),
                 const SettingsScreen(),
               ],
             ),
           ),
+
+          // ─── LAYER 2: Floating Navigation Pill(s) ───────────────────────
           Positioned(
             left: 16,
             right: 16,
@@ -84,7 +99,32 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _buildFloatingNavPill(),
+                  // THE DYNAMIC LEFT SIDE (The Ping-Pong Dock)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // 1. The Secondary Stats Pill
+                      AnimatedSize(
+                        duration: const Duration(milliseconds: 350),
+                        curve: Curves.easeOutCubic,
+                        child: _currentIndex == 1
+                            ? Padding(
+                                padding: const EdgeInsets.only(right: 12.0),
+                                child: _buildStatsSubNavPill(),
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+
+                      // 2. The Original Main Navigation Pill
+                      AnimatedSize(
+                        duration: const Duration(milliseconds: 350),
+                        curve: Curves.easeOutCubic,
+                        child: _buildFloatingNavPill(),
+                      ),
+                    ],
+                  ),
+
+                  // THE DYNAMIC RIGHT SIDE (Play Button)
                   if (_currentIndex == 0) _buildPlayButton(sessionProvider),
                 ],
               ),
@@ -94,6 +134,173 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
+  // ─── SECONDARY STATS PILL ───────────────────────────────────────────────
+  Widget _buildStatsSubNavPill() {
+    bool isExpanded = _currentIndex == 1 && !_isMainNavExpandedInStats;
+
+    return GestureDetector(
+      onTap: () {
+        // If it's collapsed and the user taps it, expand it (and auto-collapse the main pill)
+        if (!isExpanded) setState(() => _isMainNavExpandedInStats = false);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+        decoration: BoxDecoration(
+          color: AppConstants.cardColor,
+          borderRadius: BorderRadius.circular(40),
+          border: Border.all(color: AppConstants.borderColor, width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        // AnimatedSize requires a Row to know how to bound its children during transition
+        child: AnimatedSize(
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.easeOutCubic,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: isExpanded
+                ? [
+                    _buildStatsTabItem(0, 'Overview'),
+                    _buildStatsTabItem(1, 'Trends'),
+                    _buildStatsTabItem(2, 'History'),
+                  ]
+                : [
+                    // Collapsed State: Show only the active icon
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: _accentColor,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        _activeStatsIcon,
+                        color: Colors.black,
+                        size: 26,
+                      ),
+                    ),
+                  ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatsTabItem(int index, String label) {
+    final isSelected = _statsTabIndex == index;
+    return GestureDetector(
+      onTap: () => setState(() => _statsTabIndex = index),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? _accentColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(30),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.black : AppConstants.textMuted,
+            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+            fontSize: 13,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ─── ORIGINAL MAIN PILL ─────────────────────────────────────────────────
+  Widget _buildFloatingNavPill() {
+    bool isExpanded = _currentIndex != 1 || _isMainNavExpandedInStats;
+
+    return GestureDetector(
+      onTap: () {
+        // If collapsed, expand it
+        if (!isExpanded) setState(() => _isMainNavExpandedInStats = true);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+        decoration: BoxDecoration(
+          color: AppConstants.cardColor,
+          borderRadius: BorderRadius.circular(40),
+          border: Border.all(color: AppConstants.borderColor, width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: AnimatedSize(
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.easeOutCubic,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: isExpanded
+                ? [
+                    _buildNavItem(0, Icons.timer_rounded),
+                    const SizedBox(width: 4),
+                    _buildNavItem(1, Icons.show_chart_rounded),
+                    const SizedBox(width: 4),
+                    _buildNavItem(2, Icons.settings_rounded),
+                  ]
+                : [
+                    // Collapsed State: Show only the active icon (Chart)
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: _accentColor,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.show_chart_rounded,
+                        color: Colors.black,
+                        size: 26,
+                      ),
+                    ),
+                  ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem(int index, IconData icon) {
+    final isSelected = _currentIndex == index;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _currentIndex = index;
+          // Auto-collapse this main pill if we just navigated to the Stats screen
+          if (index == 1) _isMainNavExpandedInStats = false;
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isSelected ? _accentColor : Colors.transparent,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          icon,
+          color: isSelected ? Colors.black : AppConstants.textMuted,
+          size: 26,
+        ),
+      ),
+    );
+  }
+
+  // ─── REST OF HOME CONTENT ───────────────────────────────────────────────
 
   Widget _buildHomeContent(SessionProvider sessionProvider) {
     return SafeArea(
@@ -119,54 +326,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 90),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFloatingNavPill() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-      decoration: BoxDecoration(
-        color: AppConstants.cardColor,
-        borderRadius: BorderRadius.circular(40),
-        border: Border.all(color: AppConstants.borderColor, width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildNavItem(0, Icons.timer_rounded),
-          const SizedBox(width: 4),
-          _buildNavItem(1, Icons.show_chart_rounded),
-          const SizedBox(width: 4),
-          _buildNavItem(2, Icons.settings_rounded),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNavItem(int index, IconData icon) {
-    final isSelected = _currentIndex == index;
-    return GestureDetector(
-      onTap: () => setState(() => _currentIndex = index),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: isSelected ? _accentColor : Colors.transparent,
-          shape: BoxShape.circle,
-        ),
-        child: Icon(
-          icon,
-          color: isSelected ? Colors.black : AppConstants.textMuted,
-          size: 26,
         ),
       ),
     );
@@ -219,9 +378,9 @@ class _HomeScreenState extends State<HomeScreen> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         const SizedBox(width: 40),
-        Text(
+        const Text(
           AppConstants.appName,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.w900,
             letterSpacing: 2.0,
@@ -437,9 +596,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   perspective: 0.005,
                   diameterRatio: 2.5,
                   physics: const FixedExtentScrollPhysics(),
-                  onSelectedItemChanged: (index) {
-                    setState(() => _selectedDuration = index + 1);
-                  },
+                  onSelectedItemChanged: (index) =>
+                      setState(() => _selectedDuration = index + 1),
                   childDelegate: ListWheelChildBuilderDelegate(
                     builder: (context, index) {
                       bool isOrangeIndicator = (index + 1) % 15 == 0;

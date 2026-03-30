@@ -5,7 +5,9 @@ import '../../providers/stats_provider.dart';
 import 'widgets/session_list.dart';
 
 class StatsScreen extends StatefulWidget {
-  const StatsScreen({super.key});
+  final int currentTab; // Received from HomeScreen's secondary pill
+
+  const StatsScreen({super.key, required this.currentTab});
 
   @override
   State<StatsScreen> createState() => _StatsScreenState();
@@ -26,68 +28,155 @@ class _StatsScreenState extends State<StatsScreen> {
     return Scaffold(
       backgroundColor: AppConstants.backgroundColor,
       appBar: AppBar(
-        // Colors inherited from AppTheme automatically
         automaticallyImplyLeading: false,
         title: const Text('STATS'),
         centerTitle: true,
       ),
-      body: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 8, 24, 100),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      // We use an IndexedStack here to instantly swap between the 3 views
+      body: IndexedStack(
+        index: widget.currentTab,
+        children: [
+          _buildOverviewTab(statsProvider, totalHours),
+          _buildTrendsTab(), // The upcoming graph section
+          _buildHistoryTab(statsProvider),
+        ],
+      ),
+    );
+  }
+
+  // ─── TAB 0: OVERVIEW ───────────────────────────────────────────────────
+  Widget _buildOverviewTab(StatsProvider statsProvider, String totalHours) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 100),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: _StatCard(
+                  value: statsProvider.totalSessions.toString(),
+                  label: 'Sessions',
+                  icon: Icons.repeat_rounded,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _StatCard(
+                  value: totalHours,
+                  label: 'Hours locked',
+                  icon: Icons.timer_outlined,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _StatCard(
+                  value: '${statsProvider.parachutesUsed}/1',
+                  label: 'Parachutes',
+                  icon: Icons.flight_takeoff_rounded,
+                  accentColor: statsProvider.parachutesUsed >= 1
+                      ? AppConstants.primaryOrange
+                      : null,
+                ),
+              ),
+            ],
+          ),
+
+          const Spacer(),
+
+          // We can put a motivational message or "Streak" metric here soon
+          Center(
+            child: Column(
               children: [
-                Expanded(
-                  child: _StatCard(
-                    value: statsProvider.totalSessions.toString(),
-                    label: 'Sessions',
-                    icon: Icons.repeat_rounded,
-                  ),
+                Icon(
+                  Icons.local_fire_department_rounded,
+                  size: 48,
+                  color: AppConstants.borderColor.withOpacity(0.5),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _StatCard(
-                    value: totalHours,
-                    label: 'Hours locked',
-                    icon: Icons.timer_outlined,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _StatCard(
-                    value: '${statsProvider.parachutesUsed}/1',
-                    label: 'Parachutes',
-                    icon: Icons.flight_takeoff_rounded,
-                    accentColor: statsProvider.parachutesUsed >= 1
-                        ? AppConstants.primaryOrange
-                        : null,
-                  ),
+                const SizedBox(height: 12),
+                const Text(
+                  'More insights coming soon',
+                  style: TextStyle(color: AppConstants.textMuted),
                 ),
               ],
             ),
-            const SizedBox(height: 32),
-            const Text(
-              'HISTORY',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: AppConstants.textMuted,
-                letterSpacing: 2.0,
+          ),
+
+          const Spacer(),
+        ],
+      ),
+    );
+  }
+
+  // ─── TAB 1: TRENDS (CHARTS) ────────────────────────────────────────────
+  Widget _buildTrendsTab() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 100),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'FILTERING & CHARTS',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppConstants.textMuted,
+              letterSpacing: 2.0,
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Placeholder for the custom graph we will build
+          Expanded(
+            child: Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: AppConstants.cardColor,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: AppConstants.borderColor),
+              ),
+              child: const Center(
+                child: Text(
+                  'Custom Chart goes here',
+                  style: TextStyle(color: AppConstants.textMuted),
+                ),
               ),
             ),
-            const SizedBox(height: 14),
-            Expanded(
-              child: statsProvider.sessions.isEmpty
-                  ? const _EmptyState()
-                  : SessionList(sessions: statsProvider.sessions),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── TAB 2: HISTORY ────────────────────────────────────────────────────
+  Widget _buildHistoryTab(StatsProvider statsProvider) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 100),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'SESSION HISTORY',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppConstants.textMuted,
+              letterSpacing: 2.0,
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 14),
+          Expanded(
+            child: statsProvider.sessions.isEmpty
+                ? const _EmptyState()
+                : SessionList(sessions: statsProvider.sessions),
+          ),
+        ],
       ),
     );
   }
 }
+
+// ─── HELPER WIDGETS ─────────────────────────────────────────────────────
 
 class _StatCard extends StatelessWidget {
   final String value;
