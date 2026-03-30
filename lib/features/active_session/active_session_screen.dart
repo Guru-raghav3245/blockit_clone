@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/session_provider.dart';
@@ -9,169 +10,77 @@ class ActiveSessionScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final sessionProvider = context.watch<SessionProvider>();
+    final remaining = sessionProvider.remainingSeconds;
+
+    // Calculate time breakdown
+    final hours = remaining ~/ 3600;
+    final minutes = (remaining % 3600) ~/ 60;
+    final seconds = remaining % 60;
 
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {},
       child: Scaffold(
-        backgroundColor: Colors.black,
+        backgroundColor: Colors
+            .black, // Absolute black for OLED battery saving & anti-distraction
         body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Column(
-              children: [
-                const SizedBox(height: 60),
-                const Text(
-                  'SESSION ACTIVE',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF666666),
-                    letterSpacing: 3.0,
-                  ),
-                ),
-
-                const Spacer(),
-
-                Text(
-                  sessionProvider.formattedTime,
-                  style: const TextStyle(
-                    fontSize: 110,
-                    fontWeight: FontWeight.w200,
-                    color: Colors.white,
-                    letterSpacing: -6,
-                    height: 1.0,
-                    fontFeatures: [FontFeature.tabularFigures()],
-                  ),
-                ),
-
-                const Text(
-                  'remaining',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Color(0xFF666666),
-                    letterSpacing: 1.0,
-                  ),
-                ),
-
-                const Spacer(),
-
-                Container(width: 50, height: 1, color: const Color(0xFF333333)),
-
-                const SizedBox(height: 48),
-
-                // Button is now always available
-                _ParachuteButton(
-                  onTap: () => _showParachuteDialog(context, sessionProvider),
-                ),
-
-                const SizedBox(height: 60),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showParachuteDialog(
-    BuildContext context,
-    SessionProvider sessionProvider,
-  ) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      barrierColor: Colors.black87,
-      builder: (context) => Dialog(
-        backgroundColor: const Color(0xFF1A1A1A),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(28),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: AppConstants.primaryOrange.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Icon(
-                  Icons.flight_takeoff_rounded,
-                  color: AppConstants.primaryOrange,
-                  size: 28,
+              const SizedBox(height: 30),
+
+              // ─── HARSH TRUTH HEADER ───
+              const Text(
+                'SESSION ACTIVE',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF444444),
+                  letterSpacing: 4.0,
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 8),
               const Text(
-                'Use your parachute?',
+                'PUT THE PHONE DOWN',
                 style: TextStyle(
-                  fontSize: 20,
+                  fontSize: 14,
                   fontWeight: FontWeight.w700,
-                  color: Colors.white,
+                  color: Color(0xFF666666),
+                  letterSpacing: 1.0,
                 ),
               ),
-              const SizedBox(height: 12),
-              const Text(
-                'This will end your session early.', // Removed the "You only get one" text
-                style: TextStyle(
-                  fontSize: 15,
-                  color: Colors.white70,
-                  height: 1.5,
-                ),
+
+              const Spacer(),
+
+              // ─── BRUTALIST VERTICAL TIMER ───
+              // Hours (Only appears if >= 1 hour)
+              if (hours > 0) ...[
+                _buildTimeBlock(hours.toString().padLeft(2, '0'), Colors.white),
+              ],
+
+              // Minutes (Stark White)
+              _buildTimeBlock(minutes.toString().padLeft(2, '0'), Colors.white),
+
+              // Seconds (Muted Grey to reduce anxiety)
+              _buildTimeBlock(
+                seconds.toString().padLeft(2, '0'),
+                const Color(0xFF333333),
               ),
-              const SizedBox(height: 32),
-              Row(
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: Container(
-                        height: 52,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF2A2A2A),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        alignment: Alignment.center,
-                        child: const Text(
-                          'Cancel',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white70,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () {
-                        Navigator.pop(context);
-                        sessionProvider.emergencyStop(context);
-                      },
-                      child: Container(
-                        height: 52,
-                        decoration: BoxDecoration(
-                          color: AppConstants.primaryOrange,
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        alignment: Alignment.center,
-                        child: const Text(
-                          'Eject',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+
+              const Spacer(),
+
+              // ─── HOLD TO EJECT BUTTON ───
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 40,
+                  vertical: 40,
+                ),
+                child: _HoldToEjectButton(
+                  onEject: () {
+                    sessionProvider.emergencyStop(context);
+                  },
+                ),
               ),
             ],
           ),
@@ -179,42 +88,125 @@ class ActiveSessionScreen extends StatelessWidget {
       ),
     );
   }
+
+  // Helper widget for the massive brutalist text blocks
+  Widget _buildTimeBlock(String value, Color color) {
+    return Text(
+      value,
+      style: TextStyle(
+        fontSize: 160,
+        fontWeight: FontWeight.w900,
+        color: color,
+        height: 0.9, // Tight line height makes them stack like a solid wall
+        letterSpacing: -8.0,
+        fontFeatures: const [FontFeature.tabularFigures()],
+      ),
+    );
+  }
 }
 
-class _ParachuteButton extends StatelessWidget {
-  final VoidCallback onTap;
+// ─── CUSTOM "HOLD TO EJECT" FRICTION BUTTON ───
 
-  const _ParachuteButton({required this.onTap});
+class _HoldToEjectButton extends StatefulWidget {
+  final VoidCallback onEject;
+
+  const _HoldToEjectButton({required this.onEject});
+
+  @override
+  State<_HoldToEjectButton> createState() => _HoldToEjectButtonState();
+}
+
+class _HoldToEjectButtonState extends State<_HoldToEjectButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  bool _isEjected = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // 3 Seconds of psychological friction
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    );
+
+    _controller.addListener(() {
+      setState(() {});
+      // Trigger eject exact moment the bar fills
+      if (_controller.isCompleted && !_isEjected) {
+        _isEjected = true;
+        widget.onEject();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      // Press and hold mechanics
+      onTapDown: (_) {
+        if (!_isEjected) _controller.forward();
+      },
+      onTapUp: (_) {
+        if (!_isEjected) _controller.reverse();
+      },
+      onTapCancel: () {
+        if (!_isEjected) _controller.reverse();
+      },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+        height: 64,
+        width: double.infinity,
         decoration: BoxDecoration(
-          color: const Color(0xFF1F1F1F),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: AppConstants.primaryOrange.withOpacity(0.4),
-          ),
+          color: const Color(0xFF151515), // Very dark charcoal
+          borderRadius: BorderRadius.circular(32),
+          border: Border.all(color: const Color(0xFF2A2A2A), width: 1.5),
         ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
+        child: Stack(
           children: [
-            Icon(
-              Icons.flight_takeoff_rounded,
-              color: AppConstants.primaryOrange,
-              size: 20,
+            // The filling orange bar
+            FractionallySizedBox(
+              alignment: Alignment.centerLeft,
+              widthFactor: _controller.value,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppConstants.primaryOrange,
+                  borderRadius: BorderRadius.circular(32),
+                ),
+              ),
             ),
-            SizedBox(width: 12),
-            Text(
-              'USE PARACHUTE',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: AppConstants.primaryOrange,
-                letterSpacing: 1.8,
+
+            // Text and Icon overlay
+            Center(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.flight_takeoff_rounded,
+                    // Changes to white as the orange background fills behind it
+                    color: _controller.value > 0.4
+                        ? Colors.white
+                        : AppConstants.primaryOrange,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    _controller.isCompleted ? 'EJECTING...' : 'HOLD TO EJECT',
+                    style: TextStyle(
+                      color: _controller.value > 0.4
+                          ? Colors.white
+                          : const Color(0xFF777777),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 2.0,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
