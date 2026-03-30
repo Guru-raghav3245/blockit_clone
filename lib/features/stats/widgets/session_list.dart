@@ -15,35 +15,28 @@ class SessionList extends StatelessWidget {
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         final session = sessions[index];
-        final date =
-            DateFormat('MMM dd • hh:mm a').format(session.startTime);
+        final date = DateFormat('MMM dd • hh:mm a').format(session.startTime);
 
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
+            color: AppConstants.cardColor,
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(color: AppConstants.borderColor),
           ),
           child: Row(
             children: [
-              // Duration badge
               Container(
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: AppConstants.primaryOrange.withOpacity(0.08),
+                  color: AppConstants.primaryOrange.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Center(
                   child: Text(
                     '${session.durationMinutes}',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: AppConstants.primaryOrange,
-                      height: 1,
-                    ),
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppConstants.primaryOrange, height: 1),
                   ),
                 ),
               ),
@@ -54,45 +47,29 @@ class SessionList extends StatelessWidget {
                   children: [
                     Text(
                       '${session.durationMinutes} minutes',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppConstants.textPrimary,
-                      ),
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppConstants.textPrimary),
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 4),
                     Text(
                       date,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppConstants.textSecondary,
-                      ),
+                      style: const TextStyle(fontSize: 13, color: AppConstants.textMuted),
                     ),
                   ],
                 ),
               ),
               if (session.usedParachute)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: AppConstants.primaryOrange.withOpacity(0.1),
+                    color: AppConstants.primaryOrange.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Row(
+                  child: const Row(
                     mainAxisSize: MainAxisSize.min,
-                    children: const [
-                      Icon(Icons.flight_takeoff_rounded,
-                          size: 12, color: AppConstants.primaryOrange),
+                    children: [
+                      Icon(Icons.flight_takeoff_rounded, size: 14, color: AppConstants.primaryOrange),
                       SizedBox(width: 4),
-                      Text(
-                        'Parachute',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: AppConstants.primaryOrange,
-                        ),
-                      ),
+                      Text('Parachute', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppConstants.primaryOrange)),
                     ],
                   ),
                 ),

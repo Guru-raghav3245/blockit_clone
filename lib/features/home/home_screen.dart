@@ -14,12 +14,8 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedDuration = 15;
-  int _currentIndex = 0; // 0: Home, 1: Stats, 2: Settings
+  int _currentIndex = 0;
   late FixedExtentScrollController _wheelController;
-
-  final Color bgColor = const Color(0xFF151211);
-  final Color cardColor = const Color(0xFF1E1B1A);
-  final Color borderColor = const Color(0xFF332D2D);
 
   @override
   void initState() {
@@ -66,11 +62,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final sessionProvider = context.watch<SessionProvider>();
 
     return Scaffold(
-      backgroundColor: bgColor,
-      // The body is a Stack: Screen content on the bottom, Floating UI on top
+      backgroundColor: AppConstants.backgroundColor,
       body: Stack(
         children: [
-          // ─── LAYER 1: The Screens (IndexedStack) ──────────────────────────
           Positioned.fill(
             child: IndexedStack(
               index: _currentIndex,
@@ -81,21 +75,16 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
-
-          // ─── LAYER 2: Floating Navigation Pill & Play Button ────────────
           Positioned(
             left: 16,
             right: 16,
-            bottom: 10, // <--- CHANGED FROM 24 TO 10 TO BRING IT LOWER
+            bottom: 10,
             child: SafeArea(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // FLOATING OVAL NAV CARD (Always Visible)
                   _buildFloatingNavPill(),
-
-                  // FLOATING PLAY BUTTON (Visible only on Home Screen)
                   if (_currentIndex == 0) _buildPlayButton(sessionProvider),
                 ],
               ),
@@ -106,7 +95,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ─── MAIN HOME CONTENT ────────────────────────────────────────────────────
   Widget _buildHomeContent(SessionProvider sessionProvider) {
     return SafeArea(
       bottom: false,
@@ -129,7 +117,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
             ),
-            // Extra padding at the bottom so content isn't hidden behind the floating pill
             const SizedBox(height: 90),
           ],
         ),
@@ -137,15 +124,13 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ─── FLOATING WIDGETS ─────────────────────────────────────────────────────
-
   Widget _buildFloatingNavPill() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
       decoration: BoxDecoration(
-        color: cardColor, // Exact match to your screenshot style
-        borderRadius: BorderRadius.circular(40), // Oval shape
-        border: Border.all(color: borderColor, width: 1.5),
+        color: AppConstants.cardColor,
+        borderRadius: BorderRadius.circular(40),
+        border: Border.all(color: AppConstants.borderColor, width: 1.5),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.3),
@@ -169,7 +154,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildNavItem(int index, IconData icon) {
     final isSelected = _currentIndex == index;
-
     return GestureDetector(
       onTap: () => setState(() => _currentIndex = index),
       child: AnimatedContainer(
@@ -181,7 +165,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         child: Icon(
           icon,
-          color: isSelected ? Colors.black : Colors.white54,
+          color: isSelected ? Colors.black : AppConstants.textMuted,
           size: 26,
         ),
       ),
@@ -198,7 +182,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         width: 76,
-        height: 64, // Matches the height of the pill nicely
+        height: 64,
         decoration: BoxDecoration(
           color: _accentColor,
           borderRadius: BorderRadius.circular(24),
@@ -230,27 +214,25 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ─── EXISTING UI COMPONENTS ───────────────────────────────────────────────
-
   Widget _buildTopBar() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         const SizedBox(width: 40),
-        const Text(
-          "blockit",
-          style: TextStyle(
+        Text(
+          AppConstants.appName,
+          style: const TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.w900,
             letterSpacing: 2.0,
-            color: Colors.white,
+            color: AppConstants.textPrimary,
           ),
         ),
         Container(
           width: 36,
           height: 36,
           decoration: const BoxDecoration(
-            color: Colors.white,
+            color: AppConstants.textPrimary,
             shape: BoxShape.circle,
           ),
           child: const Icon(Icons.person, color: Colors.black, size: 20),
@@ -269,7 +251,7 @@ class _HomeScreenState extends State<HomeScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: cardColor,
+        color: AppConstants.cardColor,
         borderRadius: BorderRadius.circular(28),
       ),
       child: Row(
@@ -416,7 +398,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
-          color: isSelected ? _accentColor : cardColor,
+          color: isSelected ? _accentColor : AppConstants.cardColor,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Center(
@@ -426,7 +408,7 @@ class _HomeScreenState extends State<HomeScreen> {
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w700,
-              color: isSelected ? Colors.black : Colors.white,
+              color: isSelected ? Colors.black : AppConstants.textPrimary,
               height: 1.1,
               letterSpacing: -0.5,
             ),
@@ -444,7 +426,7 @@ class _HomeScreenState extends State<HomeScreen> {
             decoration: BoxDecoration(
               color: Colors.transparent,
               borderRadius: BorderRadius.circular(32),
-              border: Border.all(color: borderColor, width: 2),
+              border: Border.all(color: AppConstants.borderColor, width: 2),
             ),
             child: Stack(
               alignment: Alignment.center,
@@ -486,7 +468,10 @@ class _HomeScreenState extends State<HomeScreen> {
                             gradient: LinearGradient(
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
-                              colors: [bgColor, Colors.transparent],
+                              colors: [
+                                AppConstants.backgroundColor,
+                                Colors.transparent,
+                              ],
                             ),
                           ),
                         ),
@@ -498,7 +483,10 @@ class _HomeScreenState extends State<HomeScreen> {
                             gradient: LinearGradient(
                               begin: Alignment.bottomCenter,
                               end: Alignment.topCenter,
-                              colors: [bgColor, Colors.transparent],
+                              colors: [
+                                AppConstants.backgroundColor,
+                                Colors.transparent,
+                              ],
                             ),
                           ),
                         ),
@@ -516,7 +504,7 @@ class _HomeScreenState extends State<HomeScreen> {
           decoration: BoxDecoration(
             color: Colors.transparent,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: borderColor, width: 2),
+            border: Border.all(color: AppConstants.borderColor, width: 2),
           ),
           child: Column(
             children: [
@@ -534,12 +522,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   height: 44,
                   child: Icon(
                     Icons.keyboard_arrow_up_rounded,
-                    color: Colors.white,
+                    color: AppConstants.textPrimary,
                     size: 28,
                   ),
                 ),
               ),
-              Container(height: 2, color: borderColor),
+              Container(height: 2, color: AppConstants.borderColor),
               InkWell(
                 onTap: () {
                   if (_currentIndex != 0) setState(() => _currentIndex = 0);
@@ -554,7 +542,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   height: 44,
                   child: Icon(
                     Icons.keyboard_arrow_down_rounded,
-                    color: Colors.white,
+                    color: AppConstants.textPrimary,
                     size: 28,
                   ),
                 ),

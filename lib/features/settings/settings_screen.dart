@@ -52,25 +52,13 @@ class _SettingsScreenState extends State<SettingsScreen>
     final stats = context.watch<StatsProvider>();
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0A),
+      backgroundColor: AppConstants.backgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0A0A0A),
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        automaticallyImplyLeading: false, // Hidden back button
-        title: const Text(
-          'SETTINGS',
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            color: Colors.white70,
-            letterSpacing: 2.0,
-          ),
-        ),
+        automaticallyImplyLeading: false,
+        title: const Text('SETTINGS'),
         centerTitle: true,
       ),
       body: ListView(
-        // Added 110 bottom padding so the floating pill doesn't hide content
         padding: const EdgeInsets.fromLTRB(24, 16, 24, 110),
         children: [
           const _SectionLabel(label: 'PERMISSIONS'),
@@ -114,9 +102,9 @@ class _SettingsScreenState extends State<SettingsScreen>
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: const Color(0xFF1A1A1A),
+              color: AppConstants.cardColor,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFF2A2A2A)),
+              border: Border.all(color: AppConstants.borderColor),
             ),
             child: Row(
               children: [
@@ -143,7 +131,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                         style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w600,
-                          color: Colors.white,
+                          color: AppConstants.textPrimary,
                         ),
                       ),
                       SizedBox(height: 4),
@@ -151,7 +139,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                         'You get one free parachute per session',
                         style: TextStyle(
                           fontSize: 14,
-                          color: Colors.white70,
+                          color: AppConstants.textSecondary,
                           height: 1.4,
                         ),
                       ),
@@ -167,7 +155,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                   decoration: BoxDecoration(
                     color: stats.parachutesUsed >= 1
                         ? AppConstants.primaryOrange.withOpacity(0.15)
-                        : const Color(0xFF2A2A2A),
+                        : AppConstants.borderColor,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
@@ -177,7 +165,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                       fontWeight: FontWeight.w700,
                       color: stats.parachutesUsed >= 1
                           ? AppConstants.primaryOrange
-                          : Colors.white70,
+                          : AppConstants.textSecondary,
                     ),
                   ),
                 ),
@@ -187,10 +175,10 @@ class _SettingsScreenState extends State<SettingsScreen>
 
           if (stats.parachutesUsed >= 1) ...[
             const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4),
               child: Row(
-                children: const [
+                children: [
                   Icon(
                     Icons.info_outline_rounded,
                     size: 16,
@@ -226,7 +214,7 @@ class _SectionLabel extends StatelessWidget {
       style: const TextStyle(
         fontSize: 13,
         fontWeight: FontWeight.w700,
-        color: Colors.white54,
+        color: AppConstants.textMuted,
         letterSpacing: 2.0,
       ),
     );
@@ -260,14 +248,14 @@ class _PermissionTile extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: const Color(0xFF1A1A1A),
+              color: AppConstants.cardColor,
               borderRadius: BorderRadius.circular(
                 hint != null && !isActive ? 16 : 20,
               ),
               border: Border.all(
                 color: isActive
-                    ? const Color(0xFF2E7D32).withOpacity(0.3)
-                    : const Color(0xFF2A2A2A),
+                    ? AppConstants.successGreen.withOpacity(0.4)
+                    : AppConstants.borderColor,
               ),
             ),
             child: Row(
@@ -277,14 +265,16 @@ class _PermissionTile extends StatelessWidget {
                   height: 52,
                   decoration: BoxDecoration(
                     color: isActive
-                        ? const Color(0xFF2E7D32).withOpacity(0.15)
-                        : const Color(0xFF2A2A2A),
+                        ? AppConstants.successGreen.withOpacity(0.15)
+                        : AppConstants.borderColor.withOpacity(0.5),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Icon(
                     icon,
                     size: 26,
-                    color: isActive ? const Color(0xFF4CAF50) : Colors.white70,
+                    color: isActive
+                        ? AppConstants.successGreen
+                        : AppConstants.textMuted,
                   ),
                 ),
                 const SizedBox(width: 18),
@@ -297,7 +287,7 @@ class _PermissionTile extends StatelessWidget {
                         style: const TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w600,
-                          color: Colors.white,
+                          color: AppConstants.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -305,7 +295,7 @@ class _PermissionTile extends StatelessWidget {
                         subtitle,
                         style: const TextStyle(
                           fontSize: 14,
-                          color: Colors.white70,
+                          color: AppConstants.textSecondary,
                           height: 1.4,
                         ),
                       ),
@@ -320,7 +310,7 @@ class _PermissionTile extends StatelessWidget {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF2E7D32).withOpacity(0.2),
+                      color: AppConstants.successGreen.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Text(
@@ -328,7 +318,7 @@ class _PermissionTile extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF4CAF50),
+                        color: AppConstants.successGreen,
                       ),
                     ),
                   )
@@ -347,7 +337,7 @@ class _PermissionTile extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
-                        color: Colors.white,
+                        color: Colors.black,
                       ),
                     ),
                   ),
@@ -359,16 +349,16 @@ class _PermissionTile extends StatelessWidget {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
-            decoration: const BoxDecoration(
-              color: Color(0xFF2A2A2A),
-              borderRadius: BorderRadius.only(
+            decoration: BoxDecoration(
+              color: AppConstants.borderColor.withOpacity(0.4),
+              borderRadius: const BorderRadius.only(
                 bottomLeft: Radius.circular(16),
                 bottomRight: Radius.circular(16),
               ),
-              border: Border(
-                left: BorderSide(color: Color(0xFF3A3A3A)),
-                right: BorderSide(color: Color(0xFF3A3A3A)),
-                bottom: BorderSide(color: Color(0xFF3A3A3A)),
+              border: const Border(
+                left: BorderSide(color: AppConstants.borderColor),
+                right: BorderSide(color: AppConstants.borderColor),
+                bottom: BorderSide(color: AppConstants.borderColor),
               ),
             ),
             child: Text(
