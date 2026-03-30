@@ -86,7 +86,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Positioned(
             left: 16,
             right: 16,
-            bottom: 24, // Floats exactly above the bottom edge
+            bottom: 10, // <--- CHANGED FROM 24 TO 10 TO BRING IT LOWER
             child: SafeArea(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
