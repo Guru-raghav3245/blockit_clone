@@ -9,8 +9,7 @@ class PlatformChannelHelper {
     try {
       final result = await _channel.invokeMethod<bool>('startLockTask');
       return result ?? false;
-    } on PlatformException catch (e) {
-      print('Failed to start lock task: ${e.message}');
+    } catch (e) {
       return false;
     }
   }
@@ -19,8 +18,7 @@ class PlatformChannelHelper {
     try {
       final result = await _channel.invokeMethod<bool>('stopLockTask');
       return result ?? false;
-    } on PlatformException catch (e) {
-      print('Failed to stop lock task: ${e.message}');
+    } catch (e) {
       return false;
     }
   }
@@ -29,8 +27,7 @@ class PlatformChannelHelper {
     try {
       final result = await _channel.invokeMethod<bool>('isDeviceAdminActive');
       return result ?? false;
-    } on PlatformException catch (e) {
-      print('Failed to check device admin: ${e.message}');
+    } catch (e) {
       return false;
     }
   }
@@ -41,8 +38,7 @@ class PlatformChannelHelper {
         'isAccessibilityServiceEnabled',
       );
       return result ?? false;
-    } on PlatformException catch (e) {
-      print('Failed to check accessibility: ${e.message}');
+    } catch (e) {
       return false;
     }
   }
@@ -50,17 +46,18 @@ class PlatformChannelHelper {
   static Future<void> openAccessibilitySettings() async {
     try {
       await _channel.invokeMethod('openAccessibilitySettings');
-    } on PlatformException catch (e) {
-      print('Failed to open accessibility settings: ${e.message}');
-    }
+    } catch (e) {}
   }
 
-  // NEW: Tells the Android native side to force the hardware screen to sleep
   static Future<void> turnOffScreen() async {
     try {
       await _channel.invokeMethod('turnOffScreen');
-    } on PlatformException catch (e) {
-      print('Failed to turn off screen: ${e.message}');
-    }
+    } catch (e) {}
+  }
+
+  static Future<void> wakeScreen() async {
+    try {
+      await _channel.invokeMethod('wakeScreen');
+    } catch (e) {}
   }
 }

@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import '../core/utils/platform_channel_helper.dart';
-import '../core/constants/app_constants.dart';
 import '../models/freedom_session.dart';
 import 'stats_provider.dart';
 import 'package:provider/provider.dart';
 import '../features/active_session/active_session_screen.dart';
-import '../services/local_storage_service.dart';
+import '../features/active_session/session_complete_screen.dart';
 
 class SessionProvider extends ChangeNotifier {
   Timer? _timer;
@@ -18,152 +17,34 @@ class SessionProvider extends ChangeNotifier {
   int get remainingSeconds => _remainingSeconds;
   bool get isSessionActive => _isSessionActive;
   bool get isLocking => _isLocking;
-
-  String get formattedTime {
-    final minutes = (_remainingSeconds ~/ 60).toString().padLeft(2, '0');
-    final seconds = (_remainingSeconds % 60).toString().padLeft(2, '0');
-    return '$minutes:$seconds';
-  }
-
+  
   Future<bool> startSession(int durationMinutes, BuildContext context) async {
     if (_isSessionActive) return false;
-
-    // Check accessibility service first
     final bool accessibilityEnabled =
         await PlatformChannelHelper.isAccessibilityServiceEnabled();
-
-    if (!accessibilityEnabled) {
-      if (context.mounted) {
-        await _showAccessibilityDialog(context);
-      }
-      return false;
-    }
+    if (!accessibilityEnabled) return false;
 
     _isLocking = true;
     notifyListeners();
 
     final success = await PlatformChannelHelper.startLockTask();
-
     if (success) {
       _currentSessionDuration = durationMinutes;
       _remainingSeconds = durationMinutes * 60;
       _isSessionActive = true;
       _isLocking = false;
-
       notifyListeners();
 
-      if (context.mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const ActiveSessionScreen()),
-        );
-      }
-
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const ActiveSessionScreen()),
+      );
       _startTimer(context);
       return true;
-    } else {
-      _isLocking = false;
-      notifyListeners();
-      return false;
     }
-  }
-
-  Future<void> _showAccessibilityDialog(BuildContext context) async {
-    return showDialog(
-      context: context,
-      barrierColor: Colors.black54,
-      builder: (_) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: AppConstants.primaryOrange.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Icon(Icons.accessibility_new_rounded,
-                    color: AppConstants.primaryOrange),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'Enable Accessibility',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: AppConstants.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Blockit needs Accessibility permission to block swipe gestures during a session.\n\nTap Enable, then find "Blockit Accessibility" and turn it on.',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: AppConstants.textSecondary,
-                  height: 1.6,
-                ),
-              ),
-              const SizedBox(height: 28),
-              Row(
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: Container(
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF5F5F5),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        alignment: Alignment.center,
-                        child: const Text(
-                          'Cancel',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: AppConstants.textSecondary,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () async {
-                        Navigator.pop(context);
-                        await PlatformChannelHelper.openAccessibilitySettings();
-                      },
-                      child: Container(
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: AppConstants.primaryOrange,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        alignment: Alignment.center,
-                        child: const Text(
-                          'Enable',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    _isLocking = false;
+    notifyListeners();
+    return false;
   }
 
   void _startTimer(BuildContext context) {
@@ -186,58 +67,51 @@ class SessionProvider extends ChangeNotifier {
     _remainingSeconds = 0;
     _currentSessionDuration = 0;
 
-    final session = FreedomSession(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      durationMinutes: actualDuration,
-      startTime:
-          DateTime.now().subtract(Duration(minutes: actualDuration)),
-      usedParachute: false,
+    await context.read<StatsProvider>().addSession(
+      FreedomSession(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        durationMinutes: actualDuration,
+        startTime: DateTime.now().subtract(Duration(minutes: actualDuration)),
+        usedParachute: false,
+      ),
     );
 
+    // 1. Physically turn on the screen
+    await PlatformChannelHelper.wakeScreen();
+
+    // 2. Show the success screen immediately
     if (context.mounted) {
-      await context.read<StatsProvider>().addSession(session);
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) =>
+              SessionCompleteScreen(sessionDuration: actualDuration),
+        ),
+      );
     }
+
+    // 3. Stop the lock task mode
     await PlatformChannelHelper.stopLockTask();
-
     notifyListeners();
-
-    if (context.mounted) {
-      Navigator.popUntil(context, (route) => route.isFirst);
-    }
   }
 
   Future<void> emergencyStop(BuildContext context) async {
     _timer?.cancel();
     final actualDuration = _currentSessionDuration;
-
     _isSessionActive = false;
     _remainingSeconds = 0;
-    _currentSessionDuration = 0;
 
-    final session = FreedomSession(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      durationMinutes: actualDuration,
-      startTime:
-          DateTime.now().subtract(Duration(minutes: actualDuration)),
-      usedParachute: true,
+    await context.read<StatsProvider>().addSession(
+      FreedomSession(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        durationMinutes: actualDuration,
+        startTime: DateTime.now().subtract(Duration(minutes: actualDuration)),
+        usedParachute: true,
+      ),
     );
 
-    if (context.mounted) {
-      await context.read<StatsProvider>().addSession(session);
-    }
-    await LocalStorageService.incrementParachutesUsed();
     await PlatformChannelHelper.stopLockTask();
-
     notifyListeners();
-
-    if (context.mounted) {
-      Navigator.popUntil(context, (route) => route.isFirst);
-    }
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
+    Navigator.popUntil(context, (route) => route.isFirst);
   }
 }
