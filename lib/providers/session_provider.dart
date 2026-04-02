@@ -7,7 +7,12 @@ import 'package:provider/provider.dart';
 import '../features/active_session/active_session_screen.dart';
 import '../features/active_session/session_complete_screen.dart';
 
-enum SessionStartResult { success, accessibilityDenied, alreadyActive, lockTaskFailed }
+enum SessionStartResult {
+  success,
+  accessibilityDenied,
+  alreadyActive,
+  lockTaskFailed,
+}
 
 class SessionProvider extends ChangeNotifier {
   Timer? _timer;
@@ -16,17 +21,22 @@ class SessionProvider extends ChangeNotifier {
   bool _isLocking = false;
   int _currentSessionDuration = 0;
 
+  // Callback registered by ActiveSessionScreen to un-dim before session ends
+  VoidCallback? onUndimRequested;
+
   int get remainingSeconds => _remainingSeconds;
   bool get isSessionActive => _isSessionActive;
   bool get isLocking => _isLocking;
-  
-  Future<SessionStartResult> startSession(int durationMinutes, BuildContext context) async {
+
+  Future<SessionStartResult> startSession(
+    int durationMinutes,
+    BuildContext context,
+  ) async {
     if (_isSessionActive) return SessionStartResult.alreadyActive;
 
-    // Check for accessibility permission
     final bool accessibilityEnabled =
         await PlatformChannelHelper.isAccessibilityServiceEnabled();
-    
+
     if (!accessibilityEnabled) {
       return SessionStartResult.accessibilityDenied;
     }
@@ -49,7 +59,7 @@ class SessionProvider extends ChangeNotifier {
       _startTimer(context);
       return SessionStartResult.success;
     }
-    
+
     _isLocking = false;
     notifyListeners();
     return SessionStartResult.lockTaskFailed;
@@ -75,6 +85,9 @@ class SessionProvider extends ChangeNotifier {
     _remainingSeconds = 0;
     _currentSessionDuration = 0;
 
+    // Un-dim the screen first before doing anything else
+    onUndimRequested?.call();
+
     await context.read<StatsProvider>().addSession(
       FreedomSession(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -86,6 +99,14 @@ class SessionProvider extends ChangeNotifier {
 
     await PlatformChannelHelper.wakeScreen();
 
+    // Small delay to let the wake + un-dim fully render before navigating
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    await PlatformChannelHelper.stopLockTask();
+
+    // Another brief pause to ensure lock task is released before pushing
+    await Future.delayed(const Duration(milliseconds: 200));
+
     if (context.mounted) {
       Navigator.pushReplacement(
         context,
@@ -96,7 +117,6 @@ class SessionProvider extends ChangeNotifier {
       );
     }
 
-    await PlatformChannelHelper.stopLockTask();
     notifyListeners();
   }
 
@@ -105,6 +125,10 @@ class SessionProvider extends ChangeNotifier {
     final actualDuration = _currentSessionDuration;
     _isSessionActive = false;
     _remainingSeconds = 0;
+    _currentSessionDuration = 0;
+
+    // Un-dim before stopping
+    onUndimRequested?.call();
 
     await context.read<StatsProvider>().addSession(
       FreedomSession(

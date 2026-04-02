@@ -16,16 +16,36 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
   Timer? _inactivityTimer;
   bool _isDimmed = false;
 
+  // Cache the provider reference so we can safely access it in dispose()
+  late SessionProvider _sessionProvider;
+
   @override
   void initState() {
     super.initState();
+
+    // Save the reference securely while the widget is fully active
+    _sessionProvider = context.read<SessionProvider>();
+
     _resetInactivityTimer();
+
+    // Register the undim callback so the provider can wake the screen
+    // before navigating away when the session ends naturally
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _sessionProvider.onUndimRequested = _undim;
+    });
   }
 
   @override
   void dispose() {
     _inactivityTimer?.cancel();
+    // Clear the callback so there's no stale reference using the cached provider
+    _sessionProvider.onUndimRequested = null;
+
     super.dispose();
+  }
+
+  void _undim() {
+    if (mounted) setState(() => _isDimmed = false);
   }
 
   void _resetInactivityTimer() {
@@ -94,17 +114,29 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
                   const Spacer(),
 
                   if (hours > 0) ...[
-                    _buildTimeBlock(hours.toString().padLeft(2, '0'), Colors.white),
+                    _buildTimeBlock(
+                      hours.toString().padLeft(2, '0'),
+                      Colors.white,
+                    ),
                   ],
 
-                  _buildTimeBlock(minutes.toString().padLeft(2, '0'), const Color(0xFF333333)),
+                  _buildTimeBlock(
+                    minutes.toString().padLeft(2, '0'),
+                    Colors.white,
+                  ),
 
-                  _buildTimeBlock(seconds.toString().padLeft(2, '0'),Colors.white),
+                  _buildTimeBlock(
+                    seconds.toString().padLeft(2, '0'),
+                    const Color(0xFF333333),
+                  ),
 
                   const Spacer(),
 
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 40),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 40,
+                      vertical: 40,
+                    ),
                     child: _HoldToEjectButton(
                       onEject: () {
                         sessionProvider.emergencyStop(context);
@@ -140,7 +172,10 @@ class _HoldToEjectButton extends StatefulWidget {
   final VoidCallback onEject;
   final VoidCallback onInteraction;
 
-  const _HoldToEjectButton({required this.onEject, required this.onInteraction});
+  const _HoldToEjectButton({
+    required this.onEject,
+    required this.onInteraction,
+  });
 
   @override
   State<_HoldToEjectButton> createState() => _HoldToEjectButtonState();
@@ -155,7 +190,9 @@ class _HoldToEjectButtonState extends State<_HoldToEjectButton>
   void initState() {
     super.initState();
     _controller = AnimationController(
-        vsync: this, duration: const Duration(seconds: 3));
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    );
 
     _controller.addListener(() {
       setState(() {});
