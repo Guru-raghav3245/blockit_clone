@@ -7,6 +7,8 @@ import 'package:provider/provider.dart';
 import '../features/active_session/active_session_screen.dart';
 import '../features/active_session/session_complete_screen.dart';
 
+enum SessionStartResult { success, accessibilityDenied, alreadyActive, lockTaskFailed }
+
 class SessionProvider extends ChangeNotifier {
   Timer? _timer;
   int _remainingSeconds = 0;
@@ -18,11 +20,16 @@ class SessionProvider extends ChangeNotifier {
   bool get isSessionActive => _isSessionActive;
   bool get isLocking => _isLocking;
   
-  Future<bool> startSession(int durationMinutes, BuildContext context) async {
-    if (_isSessionActive) return false;
+  Future<SessionStartResult> startSession(int durationMinutes, BuildContext context) async {
+    if (_isSessionActive) return SessionStartResult.alreadyActive;
+
+    // Check for accessibility permission
     final bool accessibilityEnabled =
         await PlatformChannelHelper.isAccessibilityServiceEnabled();
-    if (!accessibilityEnabled) return false;
+    
+    if (!accessibilityEnabled) {
+      return SessionStartResult.accessibilityDenied;
+    }
 
     _isLocking = true;
     notifyListeners();
@@ -40,11 +47,12 @@ class SessionProvider extends ChangeNotifier {
         MaterialPageRoute(builder: (_) => const ActiveSessionScreen()),
       );
       _startTimer(context);
-      return true;
+      return SessionStartResult.success;
     }
+    
     _isLocking = false;
     notifyListeners();
-    return false;
+    return SessionStartResult.lockTaskFailed;
   }
 
   void _startTimer(BuildContext context) {
@@ -76,10 +84,8 @@ class SessionProvider extends ChangeNotifier {
       ),
     );
 
-    // 1. Physically turn on the screen
     await PlatformChannelHelper.wakeScreen();
 
-    // 2. Show the success screen immediately
     if (context.mounted) {
       Navigator.pushReplacement(
         context,
@@ -90,7 +96,6 @@ class SessionProvider extends ChangeNotifier {
       );
     }
 
-    // 3. Stop the lock task mode
     await PlatformChannelHelper.stopLockTask();
     notifyListeners();
   }

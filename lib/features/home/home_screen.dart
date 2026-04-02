@@ -4,6 +4,7 @@ import '../../providers/session_provider.dart';
 import '../../core/constants/app_constants.dart';
 import '../settings/settings_screen.dart';
 import '../stats/stats_screen.dart';
+import '../../core/utils/platform_channel_helper.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -327,48 +328,6 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 90),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildPlayButton(SessionProvider sessionProvider) {
-    return GestureDetector(
-      onTap: () async {
-        if (!sessionProvider.isLocking) {
-          await sessionProvider.startSession(_selectedDuration, context);
-        }
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        width: 76,
-        height: 64,
-        decoration: BoxDecoration(
-          color: _accentColor,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: _accentColor.withOpacity(0.2),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: sessionProvider.isLocking
-            ? const Center(
-                child: SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    color: Colors.black,
-                    strokeWidth: 3,
-                  ),
-                ),
-              )
-            : const Icon(
-                Icons.play_arrow_rounded,
-                color: Colors.black,
-                size: 36,
-              ),
       ),
     );
   }
@@ -711,4 +670,88 @@ class _HomeScreenState extends State<HomeScreen> {
       ],
     );
   }
+
+Widget _buildPlayButton(SessionProvider sessionProvider) {
+  return GestureDetector(
+    onTap: () async {
+      if (!sessionProvider.isLocking) {
+        final result = await sessionProvider.startSession(_selectedDuration, context);
+        
+        if (result == SessionStartResult.accessibilityDenied) {
+          _showPermissionDialog();
+        }
+      }
+    },
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      width: 76,
+      height: 64,
+      decoration: BoxDecoration(
+        color: _accentColor,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: _accentColor.withOpacity(0.2),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: sessionProvider.isLocking
+          ? const Center(
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  color: Colors.black,
+                  strokeWidth: 3,
+                ),
+              ),
+            )
+          : const Icon(
+              Icons.play_arrow_rounded,
+              color: Colors.black,
+              size: 36,
+            ),
+    ),
+  );
+}
+
+// Add this helper method to _HomeScreenState:
+
+void _showPermissionDialog() {
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      backgroundColor: AppConstants.cardColor,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      title: const Text(
+        'Permission Required',
+        style: TextStyle(color: AppConstants.textPrimary, fontWeight: FontWeight.bold),
+      ),
+      content: const Text(
+        'To block distractions effectively, blockit needs Accessibility Service permission. Please enable "Blockit Accessibility" in the settings.',
+        style: TextStyle(color: AppConstants.textSecondary),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel', style: TextStyle(color: AppConstants.textMuted)),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppConstants.primaryOrange,
+            foregroundColor: Colors.black,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          onPressed: () {
+            Navigator.pop(context);
+            PlatformChannelHelper.openAccessibilitySettings();
+          },
+          child: const Text('Open Settings', style: TextStyle(fontWeight: FontWeight.bold)),
+        ),
+      ],
+    ),
+  );
+}
 }
