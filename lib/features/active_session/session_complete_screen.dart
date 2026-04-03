@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../core/constants/app_constants.dart';
 import '../../providers/stats_provider.dart';
 
@@ -11,7 +12,7 @@ class SessionCompleteScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statsProvider = context.watch<StatsProvider>();
-    
+
     // Calculate today's total accumulated time
     final today = DateTime.now();
     int todayMinutes = 0;
@@ -34,15 +35,15 @@ class SessionCompleteScreen extends StatelessWidget {
             child: Column(
               children: [
                 const SizedBox(height: 20),
-                
+
                 // TOP LOGO
                 const Text(
                   AppConstants.appName,
                   style: TextStyle(
-                    fontSize: 24, 
-                    fontWeight: FontWeight.w900, 
-                    letterSpacing: 2.0, 
-                    color: Colors.white
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 2.0,
+                    color: Colors.white,
                   ),
                 ),
 
@@ -65,7 +66,10 @@ class SessionCompleteScreen extends StatelessWidget {
                             height: 100,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              border: Border.all(color: AppConstants.primaryOrange, width: 2),
+                              border: Border.all(
+                                color: AppConstants.primaryOrange,
+                                width: 2,
+                              ),
                             ),
                           ),
                         ),
@@ -78,7 +82,10 @@ class SessionCompleteScreen extends StatelessWidget {
                             height: 80,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              border: Border.all(color: AppConstants.primaryOrange, width: 1.5),
+                              border: Border.all(
+                                color: AppConstants.primaryOrange,
+                                width: 1.5,
+                              ),
                             ),
                           ),
                         ),
@@ -93,7 +100,10 @@ class SessionCompleteScreen extends StatelessWidget {
                               height: 40,
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: AppConstants.borderColor, width: 4),
+                                border: Border.all(
+                                  color: AppConstants.borderColor,
+                                  width: 4,
+                                ),
                               ),
                             ),
                           ),
@@ -124,29 +134,47 @@ class SessionCompleteScreen extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(height: 48),
-                              
+
                               // Share Button
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                                decoration: BoxDecoration(
-                                  color: Colors.transparent,
-                                  borderRadius: BorderRadius.circular(30),
-                                  border: Border.all(color: Colors.white, width: 1.5),
-                                ),
-                                child: const Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.share_rounded, color: Colors.white, size: 18),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      'Share',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w700,
-                                      ),
+                              GestureDetector(
+                                onTap: () {
+                                  Share.share(
+                                    'I just reclaimed $sessionDuration minutes of my time using blockit! 🚀',
+                                    subject: 'blockit focus session',
+                                  );
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 24,
+                                    vertical: 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.transparent,
+                                    borderRadius: BorderRadius.circular(30),
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: 1.5,
                                     ),
-                                  ],
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.share_rounded,
+                                        color: Colors.white,
+                                        size: 18,
+                                      ),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'Share',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ],

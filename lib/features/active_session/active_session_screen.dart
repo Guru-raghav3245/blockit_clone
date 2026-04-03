@@ -51,7 +51,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
   void _resetInactivityTimer() {
     _inactivityTimer?.cancel();
     if (_isDimmed) setState(() => _isDimmed = false);
-    _inactivityTimer = Timer(const Duration(seconds: 5), _dimScreen);
+    _inactivityTimer = Timer(const Duration(seconds: 10), _dimScreen);
   }
 
   void _dimScreen() {
@@ -127,7 +127,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
 
                   _buildTimeBlock(
                     seconds.toString().padLeft(2, '0'),
-                    const Color(0xFF333333),
+                    Colors.white,
                   ),
 
                   const Spacer(),
