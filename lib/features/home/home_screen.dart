@@ -18,7 +18,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   int _statsTabIndex = 0;
 
-  // NEW: Controls the "Ping-Pong" toggle state when on the Stats screen
+  // Controls the "Ping-Pong" toggle state when on the Stats screen
   bool _isMainNavExpandedInStats = false;
 
   late FixedExtentScrollController _wheelController;
@@ -72,7 +72,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final sessionProvider = context.watch<SessionProvider>();
+    // 🚀 PERFORMANCE FIX: Removed context.watch<SessionProvider>() from the root build method
+    // so the entire UI doesn't rebuild every 1 second during an active session.
 
     return Scaffold(
       backgroundColor: AppConstants.backgroundColor,
@@ -83,9 +84,11 @@ class _HomeScreenState extends State<HomeScreen> {
             child: IndexedStack(
               index: _currentIndex,
               children: [
-                _buildHomeContent(sessionProvider),
-                StatsScreen(currentTab: _statsTabIndex),
-                const SettingsScreen(),
+                _buildHomeContent(),
+                // 🚀 PERFORMANCE FIX: RepaintBoundaries prevent the complex charts
+                // from recalculating and redrawing just because the home timer ticks
+                RepaintBoundary(child: StatsScreen(currentTab: _statsTabIndex)),
+                const RepaintBoundary(child: SettingsScreen()),
               ],
             ),
           ),
@@ -126,7 +129,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
 
                   // THE DYNAMIC RIGHT SIDE (Play Button)
-                  if (_currentIndex == 0) _buildPlayButton(sessionProvider),
+                  if (_currentIndex == 0) _buildPlayButton(),
                 ],
               ),
             ),
@@ -303,7 +306,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ─── REST OF HOME CONTENT ───────────────────────────────────────────────
 
-  Widget _buildHomeContent(SessionProvider sessionProvider) {
+  Widget _buildHomeContent() {
     return SafeArea(
       bottom: false,
       child: Padding(
@@ -628,8 +631,9 @@ class _HomeScreenState extends State<HomeScreen> {
               InkWell(
                 onTap: () {
                   if (_currentIndex != 0) setState(() => _currentIndex = 0);
-                  if (_selectedDuration < 180)
+                  if (_selectedDuration < 180) {
                     _updateDuration(_selectedDuration + 1);
+                  }
                 },
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(22),
@@ -648,8 +652,9 @@ class _HomeScreenState extends State<HomeScreen> {
               InkWell(
                 onTap: () {
                   if (_currentIndex != 0) setState(() => _currentIndex = 0);
-                  if (_selectedDuration > 1)
+                  if (_selectedDuration > 1) {
                     _updateDuration(_selectedDuration - 1);
+                  }
                 },
                 borderRadius: const BorderRadius.vertical(
                   bottom: Radius.circular(22),
@@ -671,87 +676,108 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-Widget _buildPlayButton(SessionProvider sessionProvider) {
-  return GestureDetector(
-    onTap: () async {
-      if (!sessionProvider.isLocking) {
-        final result = await sessionProvider.startSession(_selectedDuration, context);
-        
-        if (result == SessionStartResult.accessibilityDenied) {
-          _showPermissionDialog();
-        }
-      }
-    },
-    child: AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      width: 76,
-      height: 64,
-      decoration: BoxDecoration(
-        color: _accentColor,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: _accentColor.withOpacity(0.2),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+  // 🚀 PERFORMANCE FIX: Selector isolates rebuilds ONLY to the play button
+  // instead of the entire widget tree when provider.isLocking changes.
+  Widget _buildPlayButton() {
+    return Selector<SessionProvider, bool>(
+      selector: (context, provider) => provider.isLocking,
+      builder: (context, isLocking, child) {
+        return GestureDetector(
+          onTap: () async {
+            if (!isLocking) {
+              // Read the provider securely inside the callback without registering for rebuilds
+              final sessionProvider = context.read<SessionProvider>();
+              final result = await sessionProvider.startSession(
+                _selectedDuration,
+                context,
+              );
+
+              if (result == SessionStartResult.accessibilityDenied) {
+                _showPermissionDialog();
+              }
+            }
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            width: 76,
+            height: 64,
+            decoration: BoxDecoration(
+              color: _accentColor,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: _accentColor.withOpacity(0.2),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: isLocking
+                ? const Center(
+                    child: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        color: Colors.black,
+                        strokeWidth: 3,
+                      ),
+                    ),
+                  )
+                : const Icon(
+                    Icons.play_arrow_rounded,
+                    color: Colors.black,
+                    size: 36,
+                  ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showPermissionDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppConstants.cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text(
+          'Permission Required',
+          style: TextStyle(
+            color: AppConstants.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: const Text(
+          'To block distractions effectively, blockit needs Accessibility Service permission. Please enable "Blockit Accessibility" in the settings.',
+          style: TextStyle(color: AppConstants.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppConstants.textMuted),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppConstants.primaryOrange,
+              foregroundColor: Colors.black,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: () {
+              Navigator.pop(context);
+              PlatformChannelHelper.openAccessibilitySettings();
+            },
+            child: const Text(
+              'Open Settings',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
-      child: sessionProvider.isLocking
-          ? const Center(
-              child: SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  color: Colors.black,
-                  strokeWidth: 3,
-                ),
-              ),
-            )
-          : const Icon(
-              Icons.play_arrow_rounded,
-              color: Colors.black,
-              size: 36,
-            ),
-    ),
-  );
-}
-
-// Add this helper method to _HomeScreenState:
-
-void _showPermissionDialog() {
-  showDialog(
-    context: context,
-    builder: (context) => AlertDialog(
-      backgroundColor: AppConstants.cardColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      title: const Text(
-        'Permission Required',
-        style: TextStyle(color: AppConstants.textPrimary, fontWeight: FontWeight.bold),
-      ),
-      content: const Text(
-        'To block distractions effectively, blockit needs Accessibility Service permission. Please enable "Blockit Accessibility" in the settings.',
-        style: TextStyle(color: AppConstants.textSecondary),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel', style: TextStyle(color: AppConstants.textMuted)),
-        ),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppConstants.primaryOrange,
-            foregroundColor: Colors.black,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-          onPressed: () {
-            Navigator.pop(context);
-            PlatformChannelHelper.openAccessibilitySettings();
-          },
-          child: const Text('Open Settings', style: TextStyle(fontWeight: FontWeight.bold)),
-        ),
-      ],
-    ),
-  );
-}
+    );
+  }
 }
