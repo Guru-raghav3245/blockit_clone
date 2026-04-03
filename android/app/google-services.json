@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "285912336612",
+    "project_id": "blockit-clone",
+    "storage_bucket": "blockit-clone.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:285912336612:android:24da7a45a7bd94dedd04f1",
+        "android_client_info": {
+          "package_name": "com.example.blockit_clone"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBjaND1FyeDOddIgiPdgMjxgwrqhbdS_PA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

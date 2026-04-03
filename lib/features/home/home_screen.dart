@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../providers/session_provider.dart';
 import '../../core/constants/app_constants.dart';
 import '../../services/local_storage_service.dart';
+import '../../services/auth_service.dart';
 import '../settings/settings_screen.dart';
 import '../stats/stats_screen.dart';
 import '../../core/utils/platform_channel_helper.dart';
@@ -23,6 +25,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoadingPrefs = true;
 
   FixedExtentScrollController? _wheelController;
+  final AuthService _authService = AuthService(); // Add Auth Service
 
   @override
   void initState() {
@@ -143,8 +146,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
-  // ... [Keep _buildStatsSubNavPill, _buildStatsTabItem, _buildFloatingNavPill, _buildNavItem exactly as they were] ...
 
   Widget _buildStatsSubNavPill() {
     bool isExpanded = _currentIndex == 1 && !_isMainNavExpandedInStats;
@@ -303,10 +304,9 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ─── RESPONSIVE LAYOUT ───────────────────────────────────────────────
-
   Widget _buildHomeContent(BuildContext context) {
-    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
 
     return SafeArea(
       bottom: false,
@@ -350,10 +350,8 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Left half
               Expanded(flex: 5, child: _buildBigDisplayCard(true)),
               const SizedBox(width: 12),
-              // Right half
               Expanded(
                 flex: 6,
                 child: Row(
@@ -372,6 +370,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ─── AUTH TOP BAR LOGIC ───────────────────────────────────────────────
+
   Widget _buildTopBar() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -386,18 +386,103 @@ class _HomeScreenState extends State<HomeScreen> {
             color: AppConstants.textPrimary,
           ),
         ),
-        Container(
-          width: 36,
-          height: 36,
-          decoration: const BoxDecoration(
-            color: AppConstants.textPrimary,
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(Icons.person, color: Colors.black, size: 20),
+        // Listen to Auth State to change the icon
+        StreamBuilder<User?>(
+          stream: _authService.authStateChanges,
+          builder: (context, snapshot) {
+            final user = snapshot.data;
+            final isLoggedIn = user != null;
+
+            return GestureDetector(
+              onTap: () async {
+                if (isLoggedIn) {
+                  _showLogoutDialog(user);
+                } else {
+                  // Trigger Google Sign In
+                  final credential = await _authService.signInWithGoogle();
+                  if (credential == null && mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Sign-in cancelled or failed.'),
+                      ),
+                    );
+                  }
+                }
+              },
+              child: isLoggedIn && user.photoURL != null
+                  ? CircleAvatar(
+                      radius: 18,
+                      backgroundColor: AppConstants.borderColor,
+                      backgroundImage: NetworkImage(user.photoURL!),
+                    )
+                  : Container(
+                      width: 36,
+                      height: 36,
+                      decoration: const BoxDecoration(
+                        color: AppConstants.textPrimary,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.person,
+                        color: Colors.black,
+                        size: 20,
+                      ),
+                    ),
+            );
+          },
         ),
       ],
     );
   }
+
+  void _showLogoutDialog(User user) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppConstants.cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Text(
+          user.displayName ?? 'Account',
+          style: const TextStyle(
+            color: AppConstants.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Text(
+          'Logged in as ${user.email}\n\nDo you want to log out?',
+          style: const TextStyle(color: AppConstants.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppConstants.textMuted),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppConstants.borderColor,
+              foregroundColor: AppConstants.textPrimary,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: () async {
+              Navigator.pop(context);
+              await _authService.signOut();
+            },
+            child: const Text(
+              'Log Out',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ────────────────────────────────────────────────────────────────────────
 
   Widget _buildBigDisplayCard(bool isLandscape) {
     final hours = (_selectedDuration ~/ 60).toString().padLeft(2, '0');
@@ -425,7 +510,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: AnimatedDefaultTextStyle(
                     duration: const Duration(milliseconds: 300),
                     style: TextStyle(
-                      fontSize: isLandscape ? 70 : 100, // Scaled down for landscape
+                      fontSize: isLandscape ? 70 : 100,
                       fontWeight: FontWeight.w900,
                       color: _accentColor,
                       height: 0.85,
@@ -439,7 +524,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: AnimatedDefaultTextStyle(
                     duration: const Duration(milliseconds: 300),
                     style: TextStyle(
-                      fontSize: isLandscape ? 70 : 100, // Scaled down for landscape
+                      fontSize: isLandscape ? 70 : 100,
                       fontWeight: FontWeight.w900,
                       color: _accentColor,
                       height: 0.85,
@@ -460,8 +545,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.end,
-                    children: List.generate(isLandscape ? 9 : 13, (index) { // Fewer lines in landscape
-                      int markerMinute = (isLandscape ? 8 - index : 12 - index) * 15;
+                    children: List.generate(isLandscape ? 9 : 13, (index) {
+                      int markerMinute =
+                          (isLandscape ? 8 - index : 12 - index) * 15;
                       bool isLong = markerMinute % 60 == 0;
                       bool isActive = markerMinute <= _selectedDuration;
                       return AnimatedContainer(
@@ -516,8 +602,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ... [Keep _buildAsymmetricGrid, _presetCard, _buildThumbwheel, _buildPlayButton, _showPermissionDialog exactly as they were] ...
-
   Widget _buildAsymmetricGrid() {
     return Column(
       children: [
@@ -563,7 +647,9 @@ class _HomeScreenState extends State<HomeScreen> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
-          color: _selectedDuration == minutes ? _accentColor : AppConstants.cardColor,
+          color: _selectedDuration == minutes
+              ? _accentColor
+              : AppConstants.cardColor,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Center(
@@ -575,7 +661,9 @@ class _HomeScreenState extends State<HomeScreen> {
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.w700,
-                color: _selectedDuration == minutes ? Colors.black : AppConstants.textPrimary,
+                color: _selectedDuration == minutes
+                    ? Colors.black
+                    : AppConstants.textPrimary,
                 height: 1.1,
                 letterSpacing: -0.5,
               ),
@@ -687,11 +775,17 @@ class _HomeScreenState extends State<HomeScreen> {
                     _updateDuration(_selectedDuration + 1);
                   }
                 },
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(22),
+                ),
                 child: const SizedBox(
                   width: double.infinity,
                   height: 44,
-                  child: Icon(Icons.keyboard_arrow_up_rounded, color: AppConstants.textPrimary, size: 28),
+                  child: Icon(
+                    Icons.keyboard_arrow_up_rounded,
+                    color: AppConstants.textPrimary,
+                    size: 28,
+                  ),
                 ),
               ),
               Container(height: 2, color: AppConstants.borderColor),
@@ -702,11 +796,17 @@ class _HomeScreenState extends State<HomeScreen> {
                     _updateDuration(_selectedDuration - 1);
                   }
                 },
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(22)),
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(22),
+                ),
                 child: const SizedBox(
                   width: double.infinity,
                   height: 44,
-                  child: Icon(Icons.keyboard_arrow_down_rounded, color: AppConstants.textPrimary, size: 28),
+                  child: Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: AppConstants.textPrimary,
+                    size: 28,
+                  ),
                 ),
               ),
             ],
@@ -725,7 +825,9 @@ class _HomeScreenState extends State<HomeScreen> {
             if (!isLocking) {
               final sessionProvider = context.read<SessionProvider>();
               final result = await sessionProvider.startSession(
-                  _selectedDuration, context);
+                _selectedDuration,
+                context,
+              );
 
               if (result == SessionStartResult.accessibilityDenied) {
                 _showPermissionDialog();
@@ -777,7 +879,10 @@ class _HomeScreenState extends State<HomeScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: const Text(
           'Permission Required',
-          style: TextStyle(color: AppConstants.textPrimary, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: AppConstants.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         content: const Text(
           'To block distractions effectively, blockit needs Accessibility Service permission. Please enable "Blockit Accessibility" in the settings.',
@@ -786,19 +891,27 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: AppConstants.textMuted)),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppConstants.textMuted),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: AppConstants.primaryOrange,
               foregroundColor: Colors.black,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             onPressed: () {
               Navigator.pop(context);
               PlatformChannelHelper.openAccessibilitySettings();
             },
-            child: const Text('Open Settings', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text(
+              'Open Settings',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
