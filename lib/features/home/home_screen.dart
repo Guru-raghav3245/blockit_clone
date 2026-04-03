@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/session_provider.dart';
 import '../../core/constants/app_constants.dart';
+import '../../services/local_storage_service.dart';
 import '../settings/settings_screen.dart';
 import '../stats/stats_screen.dart';
 import '../../core/utils/platform_channel_helper.dart';
@@ -18,22 +19,38 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   int _statsTabIndex = 0;
 
-  // Controls the "Ping-Pong" toggle state when on the Stats screen
   bool _isMainNavExpandedInStats = false;
 
-  late FixedExtentScrollController _wheelController;
+  // Controls the loading state so we don't render the wheel until we have the data
+  bool _isLoadingPrefs = true;
+
+  // Make the controller nullable so we only instantiate it ONCE
+  FixedExtentScrollController? _wheelController;
 
   @override
   void initState() {
     super.initState();
-    _wheelController = FixedExtentScrollController(
-      initialItem: _selectedDuration - 1,
-    );
+    _loadUserPreferences();
+  }
+
+  Future<void> _loadUserPreferences() async {
+    final savedDuration = await LocalStorageService.getLastSelectedDuration();
+
+    if (mounted) {
+      setState(() {
+        _selectedDuration = savedDuration;
+        // ONLY initialize the controller after we have the saved duration
+        _wheelController = FixedExtentScrollController(
+          initialItem: savedDuration - 1,
+        );
+        _isLoadingPrefs = false;
+      });
+    }
   }
 
   @override
   void dispose() {
-    _wheelController.dispose();
+    _wheelController?.dispose();
     super.dispose();
   }
 
@@ -52,10 +69,17 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _updateDuration(int newDuration) {
+    if (_selectedDuration == newDuration) return;
+
     setState(() => _selectedDuration = newDuration);
-    if (_wheelController.hasClients &&
-        _wheelController.selectedItem != (newDuration - 1)) {
-      _wheelController.animateToItem(
+
+    // Save the choice immediately
+    LocalStorageService.saveLastSelectedDuration(newDuration);
+
+    if (_wheelController != null &&
+        _wheelController!.hasClients &&
+        _wheelController!.selectedItem != (newDuration - 1)) {
+      _wheelController!.animateToItem(
         newDuration - 1,
         duration: const Duration(milliseconds: 400),
         curve: Curves.easeOutCubic,
@@ -63,7 +87,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // Helper to determine which icon shows when the Secondary Pill is collapsed
   IconData get _activeStatsIcon {
     if (_statsTabIndex == 0) return Icons.grid_view_rounded;
     if (_statsTabIndex == 1) return Icons.insights_rounded;
@@ -72,28 +95,26 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 🚀 PERFORMANCE FIX: Removed context.watch<SessionProvider>() from the root build method
-    // so the entire UI doesn't rebuild every 1 second during an active session.
+    // 🚀 CRITICAL FIX: Do not return the main UI until SharedPreferences is loaded
+    // This stops the wheel from defaulting to 15 and overwriting the saved state.
+    if (_isLoadingPrefs || _wheelController == null) {
+      return const Scaffold(backgroundColor: AppConstants.backgroundColor);
+    }
 
     return Scaffold(
       backgroundColor: AppConstants.backgroundColor,
       body: Stack(
         children: [
-          // ─── LAYER 1: Screens ───────────────────────────────────────────
           Positioned.fill(
             child: IndexedStack(
               index: _currentIndex,
               children: [
                 _buildHomeContent(),
-                // 🚀 PERFORMANCE FIX: RepaintBoundaries prevent the complex charts
-                // from recalculating and redrawing just because the home timer ticks
                 RepaintBoundary(child: StatsScreen(currentTab: _statsTabIndex)),
                 const RepaintBoundary(child: SettingsScreen()),
               ],
             ),
           ),
-
-          // ─── LAYER 2: Floating Navigation Pill(s) ───────────────────────
           Positioned(
             left: 16,
             right: 16,
@@ -103,11 +124,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // THE DYNAMIC LEFT SIDE (The Ping-Pong Dock)
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // 1. The Secondary Stats Pill
                       AnimatedSize(
                         duration: const Duration(milliseconds: 350),
                         curve: Curves.easeOutCubic,
@@ -118,8 +137,6 @@ class _HomeScreenState extends State<HomeScreen> {
                               )
                             : const SizedBox.shrink(),
                       ),
-
-                      // 2. The Original Main Navigation Pill
                       AnimatedSize(
                         duration: const Duration(milliseconds: 350),
                         curve: Curves.easeOutCubic,
@@ -127,8 +144,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ],
                   ),
-
-                  // THE DYNAMIC RIGHT SIDE (Play Button)
                   if (_currentIndex == 0) _buildPlayButton(),
                 ],
               ),
@@ -139,13 +154,11 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ─── SECONDARY STATS PILL ───────────────────────────────────────────────
   Widget _buildStatsSubNavPill() {
     bool isExpanded = _currentIndex == 1 && !_isMainNavExpandedInStats;
 
     return GestureDetector(
       onTap: () {
-        // If it's collapsed and the user taps it, expand it (and auto-collapse the main pill)
         if (!isExpanded) setState(() => _isMainNavExpandedInStats = false);
       },
       child: Container(
@@ -162,7 +175,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
-        // AnimatedSize requires a Row to know how to bound its children during transition
         child: AnimatedSize(
           duration: const Duration(milliseconds: 350),
           curve: Curves.easeOutCubic,
@@ -175,7 +187,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     _buildStatsTabItem(2, 'History'),
                   ]
                 : [
-                    // Collapsed State: Show only the active icon
                     AnimatedContainer(
                       duration: const Duration(milliseconds: 250),
                       padding: const EdgeInsets.all(12),
@@ -220,13 +231,11 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ─── ORIGINAL MAIN PILL ─────────────────────────────────────────────────
   Widget _buildFloatingNavPill() {
     bool isExpanded = _currentIndex != 1 || _isMainNavExpandedInStats;
 
     return GestureDetector(
       onTap: () {
-        // If collapsed, expand it
         if (!isExpanded) setState(() => _isMainNavExpandedInStats = true);
       },
       child: Container(
@@ -257,7 +266,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     _buildNavItem(2, Icons.settings_rounded),
                   ]
                 : [
-                    // Collapsed State: Show only the active icon (Chart)
                     AnimatedContainer(
                       duration: const Duration(milliseconds: 250),
                       padding: const EdgeInsets.all(12),
@@ -284,7 +292,6 @@ class _HomeScreenState extends State<HomeScreen> {
       onTap: () {
         setState(() {
           _currentIndex = index;
-          // Auto-collapse this main pill if we just navigated to the Stats screen
           if (index == 1) _isMainNavExpandedInStats = false;
         });
       },
@@ -303,8 +310,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
-  // ─── REST OF HOME CONTENT ───────────────────────────────────────────────
 
   Widget _buildHomeContent() {
     return SafeArea(
@@ -553,13 +558,19 @@ class _HomeScreenState extends State<HomeScreen> {
               alignment: Alignment.center,
               children: [
                 ListWheelScrollView.useDelegate(
-                  controller: _wheelController,
+                  controller: _wheelController, // Safe to use directly now
                   itemExtent: 14,
                   perspective: 0.005,
                   diameterRatio: 2.5,
                   physics: const FixedExtentScrollPhysics(),
-                  onSelectedItemChanged: (index) =>
-                      setState(() => _selectedDuration = index + 1),
+                  onSelectedItemChanged: (index) {
+                    final newDuration = index + 1;
+                    if (_selectedDuration != newDuration) {
+                      setState(() => _selectedDuration = newDuration);
+                      // Save the choice!
+                      LocalStorageService.saveLastSelectedDuration(newDuration);
+                    }
+                  },
                   childDelegate: ListWheelChildBuilderDelegate(
                     builder: (context, index) {
                       bool isOrangeIndicator = (index + 1) % 15 == 0;
@@ -676,8 +687,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // 🚀 PERFORMANCE FIX: Selector isolates rebuilds ONLY to the play button
-  // instead of the entire widget tree when provider.isLocking changes.
   Widget _buildPlayButton() {
     return Selector<SessionProvider, bool>(
       selector: (context, provider) => provider.isLocking,
@@ -685,7 +694,6 @@ class _HomeScreenState extends State<HomeScreen> {
         return GestureDetector(
           onTap: () async {
             if (!isLocking) {
-              // Read the provider securely inside the callback without registering for rebuilds
               final sessionProvider = context.read<SessionProvider>();
               final result = await sessionProvider.startSession(
                 _selectedDuration,

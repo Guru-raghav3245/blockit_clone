@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../core/constants/app_constants.dart';
 import '../../providers/stats_provider.dart';
 import '../../models/freedom_session.dart';
+import '../../services/local_storage_service.dart';
 import 'widgets/session_list.dart';
 
 class StatsScreen extends StatefulWidget {
@@ -23,6 +24,16 @@ class _StatsScreenState extends State<StatsScreen> {
   void initState() {
     super.initState();
     context.read<StatsProvider>().loadStats();
+    _loadUserPreferences();
+  }
+
+  Future<void> _loadUserPreferences() async {
+    final savedFilter = await LocalStorageService.getLastStatsFilter();
+    if (mounted) {
+      setState(() {
+        _selectedFilterIndex = savedFilter;
+      });
+    }
   }
 
   // ─── STAT CALCULATIONS ──────────────────────────────────────────────────
@@ -106,7 +117,6 @@ class _StatsScreenState extends State<StatsScreen> {
     List<_ChartBarData> data = [];
 
     if (_selectedFilterIndex == 0) {
-      // ── DAY: Today grouped in 4-hour blocks
       List<double> values = List.filled(6, 0.0);
       for (var s in stats.sessions) {
         if (s.startTime.day == now.day &&
@@ -124,16 +134,14 @@ class _StatsScreenState extends State<StatsScreen> {
         );
       }
     } else if (_selectedFilterIndex == 1) {
-      // ── WEEK: Current Calendar Week (Mon-Sun)
       List<double> values = List.filled(7, 0.0);
 
-      // Calculate the Date for Monday of the current week
       DateTime startOfWeek = now.subtract(Duration(days: now.weekday - 1));
       startOfWeek = DateTime(
         startOfWeek.year,
         startOfWeek.month,
         startOfWeek.day,
-      ); // zero out time
+      );
 
       for (var s in stats.sessions) {
         final sessionDate = DateTime(
@@ -142,7 +150,6 @@ class _StatsScreenState extends State<StatsScreen> {
           s.startTime.day,
         );
         final diff = sessionDate.difference(startOfWeek).inDays;
-        // Check if the session falls within this Monday-Sunday block
         if (diff >= 0 && diff < 7) {
           values[diff] += s.durationMinutes;
         }
@@ -154,7 +161,6 @@ class _StatsScreenState extends State<StatsScreen> {
         bool isCurrentDay =
             (d.day == now.day && d.month == now.month && d.year == now.year);
 
-        // Using newline to stack Letter over Date
         data.add(
           _ChartBarData(
             "$letter\n${d.day}",
@@ -164,7 +170,6 @@ class _StatsScreenState extends State<StatsScreen> {
         );
       }
     } else if (_selectedFilterIndex == 2) {
-      // ── MONTH: Current Calendar Month
       List<double> values = List.filled(4, 0.0);
       for (var s in stats.sessions) {
         if (s.startTime.month == now.month && s.startTime.year == now.year) {
@@ -176,11 +181,10 @@ class _StatsScreenState extends State<StatsScreen> {
           else if (day <= 21)
             values[2] += s.durationMinutes;
           else
-            values[3] += s.durationMinutes; // 22+ goes to Week 4
+            values[3] += s.durationMinutes;
         }
       }
 
-      // Determine which week block the current day belongs to
       int currentWeekIndex = now.day <= 7
           ? 0
           : now.day <= 14
@@ -503,12 +507,10 @@ class _StatsScreenState extends State<StatsScreen> {
         : chartData.map((d) => d.value).reduce((a, b) => a > b ? a : b);
     final chartMax = maxMinutes > 0 ? maxMinutes : 60.0;
 
-    // Dynamic Header Title
     String headerTitle = "Today";
     if (_selectedFilterIndex == 1) headerTitle = "This Week";
     if (_selectedFilterIndex == 2) headerTitle = "This Month";
 
-    // Dynamic Context Cards Filtering
     int periodSessions = 0;
     int periodParachutes = 0;
     final now = DateTime.now();
@@ -601,7 +603,6 @@ class _StatsScreenState extends State<StatsScreen> {
 
               const SizedBox(height: 30),
 
-              // Custom Bar Chart - Height fixed at 220px to avoid RenderFlex Overflow
               SizedBox(
                 height: 220,
                 child: Row(
@@ -613,7 +614,6 @@ class _StatsScreenState extends State<StatsScreen> {
                     final isTouched = _touchedBarIndex == index;
                     final isCurrent = dataPoint.isCurrent;
 
-                    // Dynamic bar coloring
                     Color barColor;
                     if (isTouched) {
                       barColor = AppConstants.primaryOrange;
@@ -625,7 +625,6 @@ class _StatsScreenState extends State<StatsScreen> {
                       barColor = AppConstants.borderColor;
                     }
 
-                    // Highlight Label if touched OR current
                     Color labelColor = (isTouched || isCurrent)
                         ? AppConstants.primaryOrange
                         : AppConstants.textMuted;
@@ -637,8 +636,7 @@ class _StatsScreenState extends State<StatsScreen> {
                       onTapCancel: () =>
                           setState(() => _touchedBarIndex = null),
                       child: Container(
-                        color: Colors
-                            .transparent, // Expands hit area for ease of tapping
+                        color: Colors.transparent,
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
@@ -666,7 +664,6 @@ class _StatsScreenState extends State<StatsScreen> {
                               ),
                             ),
                             const SizedBox(height: 12),
-                            // X-Axis Label handles \n cleanly with center alignment
                             Text(
                               dataPoint.label,
                               textAlign: TextAlign.center,
@@ -776,6 +773,8 @@ class _StatsScreenState extends State<StatsScreen> {
             _selectedFilterIndex = index;
             _touchedBarIndex = null;
           });
+          // SAVE CHOICE
+          LocalStorageService.saveLastStatsFilter(index);
         },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
@@ -831,8 +830,6 @@ class _StatsScreenState extends State<StatsScreen> {
     );
   }
 }
-
-// ─── HELPER CLASSES ──────────────────────────────────────────────────────
 
 class _ChartBarData {
   final String label;
