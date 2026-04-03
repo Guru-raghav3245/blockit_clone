@@ -20,11 +20,8 @@ class _HomeScreenState extends State<HomeScreen> {
   int _statsTabIndex = 0;
 
   bool _isMainNavExpandedInStats = false;
-
-  // Controls the loading state so we don't render the wheel until we have the data
   bool _isLoadingPrefs = true;
 
-  // Make the controller nullable so we only instantiate it ONCE
   FixedExtentScrollController? _wheelController;
 
   @override
@@ -35,11 +32,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadUserPreferences() async {
     final savedDuration = await LocalStorageService.getLastSelectedDuration();
-
     if (mounted) {
       setState(() {
         _selectedDuration = savedDuration;
-        // ONLY initialize the controller after we have the saved duration
         _wheelController = FixedExtentScrollController(
           initialItem: savedDuration - 1,
         );
@@ -70,10 +65,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _updateDuration(int newDuration) {
     if (_selectedDuration == newDuration) return;
-
     setState(() => _selectedDuration = newDuration);
-
-    // Save the choice immediately
     LocalStorageService.saveLastSelectedDuration(newDuration);
 
     if (_wheelController != null &&
@@ -95,8 +87,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 🚀 CRITICAL FIX: Do not return the main UI until SharedPreferences is loaded
-    // This stops the wheel from defaulting to 15 and overwriting the saved state.
     if (_isLoadingPrefs || _wheelController == null) {
       return const Scaffold(backgroundColor: AppConstants.backgroundColor);
     }
@@ -109,7 +99,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: IndexedStack(
               index: _currentIndex,
               children: [
-                _buildHomeContent(),
+                _buildHomeContent(context),
                 RepaintBoundary(child: StatsScreen(currentTab: _statsTabIndex)),
                 const RepaintBoundary(child: SettingsScreen()),
               ],
@@ -153,6 +143,8 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
+  // ... [Keep _buildStatsSubNavPill, _buildStatsTabItem, _buildFloatingNavPill, _buildNavItem exactly as they were] ...
 
   Widget _buildStatsSubNavPill() {
     bool isExpanded = _currentIndex == 1 && !_isMainNavExpandedInStats;
@@ -311,32 +303,72 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildHomeContent() {
+  // ─── RESPONSIVE LAYOUT ───────────────────────────────────────────────
+
+  Widget _buildHomeContent(BuildContext context) {
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+
     return SafeArea(
       bottom: false,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
-        child: Column(
-          children: [
-            const SizedBox(height: 10),
-            _buildTopBar(),
-            const SizedBox(height: 16),
-            Expanded(flex: 4, child: _buildBigDisplayCard()),
-            const SizedBox(height: 12),
-            Expanded(
-              flex: 5,
-              child: Row(
-                children: [
-                  Expanded(flex: 13, child: _buildAsymmetricGrid()),
-                  const SizedBox(width: 12),
-                  Expanded(flex: 4, child: _buildThumbwheel()),
-                ],
-              ),
-            ),
-            const SizedBox(height: 90),
-          ],
-        ),
+        child: isLandscape ? _buildLandscapeLayout() : _buildPortraitLayout(),
       ),
+    );
+  }
+
+  Widget _buildPortraitLayout() {
+    return Column(
+      children: [
+        const SizedBox(height: 10),
+        _buildTopBar(),
+        const SizedBox(height: 16),
+        Expanded(flex: 4, child: _buildBigDisplayCard(false)),
+        const SizedBox(height: 12),
+        Expanded(
+          flex: 5,
+          child: Row(
+            children: [
+              Expanded(flex: 13, child: _buildAsymmetricGrid()),
+              const SizedBox(width: 12),
+              Expanded(flex: 4, child: _buildThumbwheel()),
+            ],
+          ),
+        ),
+        const SizedBox(height: 90),
+      ],
+    );
+  }
+
+  Widget _buildLandscapeLayout() {
+    return Column(
+      children: [
+        const SizedBox(height: 4),
+        _buildTopBar(),
+        const SizedBox(height: 12),
+        Expanded(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Left half
+              Expanded(flex: 5, child: _buildBigDisplayCard(true)),
+              const SizedBox(width: 12),
+              // Right half
+              Expanded(
+                flex: 6,
+                child: Row(
+                  children: [
+                    Expanded(flex: 13, child: _buildAsymmetricGrid()),
+                    const SizedBox(width: 12),
+                    Expanded(flex: 4, child: _buildThumbwheel()),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 80),
+      ],
     );
   }
 
@@ -367,7 +399,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildBigDisplayCard() {
+  Widget _buildBigDisplayCard(bool isLandscape) {
     final hours = (_selectedDuration ~/ 60).toString().padLeft(2, '0');
     final minutes = (_selectedDuration % 60).toString().padLeft(2, '0');
     double alignY = 1.0 - ((_selectedDuration / 180).clamp(0.0, 1.0) * 2.0);
@@ -375,7 +407,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isLandscape ? 16 : 24),
       decoration: BoxDecoration(
         color: AppConstants.cardColor,
         borderRadius: BorderRadius.circular(28),
@@ -388,33 +420,39 @@ class _HomeScreenState extends State<HomeScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                AnimatedDefaultTextStyle(
-                  duration: const Duration(milliseconds: 300),
-                  style: TextStyle(
-                    fontSize: 100,
-                    fontWeight: FontWeight.w900,
-                    color: _accentColor,
-                    height: 0.85,
-                    letterSpacing: -4,
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: AnimatedDefaultTextStyle(
+                    duration: const Duration(milliseconds: 300),
+                    style: TextStyle(
+                      fontSize: isLandscape ? 70 : 100, // Scaled down for landscape
+                      fontWeight: FontWeight.w900,
+                      color: _accentColor,
+                      height: 0.85,
+                      letterSpacing: -4,
+                    ),
+                    child: Text(hours),
                   ),
-                  child: Text(hours),
                 ),
-                AnimatedDefaultTextStyle(
-                  duration: const Duration(milliseconds: 300),
-                  style: TextStyle(
-                    fontSize: 100,
-                    fontWeight: FontWeight.w900,
-                    color: _accentColor,
-                    height: 0.85,
-                    letterSpacing: -4,
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: AnimatedDefaultTextStyle(
+                    duration: const Duration(milliseconds: 300),
+                    style: TextStyle(
+                      fontSize: isLandscape ? 70 : 100, // Scaled down for landscape
+                      fontWeight: FontWeight.w900,
+                      color: _accentColor,
+                      height: 0.85,
+                      letterSpacing: -4,
+                    ),
+                    child: Text(minutes),
                   ),
-                  child: Text(minutes),
                 ),
               ],
             ),
           ),
           SizedBox(
-            width: 140,
+            width: isLandscape ? 110 : 140,
             child: Stack(
               children: [
                 Align(
@@ -422,8 +460,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.end,
-                    children: List.generate(13, (index) {
-                      int markerMinute = (12 - index) * 15;
+                    children: List.generate(isLandscape ? 9 : 13, (index) { // Fewer lines in landscape
+                      int markerMinute = (isLandscape ? 8 - index : 12 - index) * 15;
                       bool isLong = markerMinute % 60 == 0;
                       bool isActive = markerMinute <= _selectedDuration;
                       return AnimatedContainer(
@@ -446,9 +484,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     padding: const EdgeInsets.only(right: 18),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 300),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isLandscape ? 10 : 14,
+                        vertical: isLandscape ? 8 : 10,
                       ),
                       decoration: BoxDecoration(
                         color: _accentColor,
@@ -461,10 +499,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       child: Text(
                         _difficultyLabel,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Colors.black,
                           fontWeight: FontWeight.w800,
-                          fontSize: 14,
+                          fontSize: isLandscape ? 12 : 14,
                         ),
                       ),
                     ),
@@ -477,6 +515,8 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
+  // ... [Keep _buildAsymmetricGrid, _presetCard, _buildThumbwheel, _buildPlayButton, _showPermissionDialog exactly as they were] ...
 
   Widget _buildAsymmetricGrid() {
     return Column(
@@ -515,7 +555,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _presetCard(int minutes, String label) {
-    final isSelected = _selectedDuration == minutes;
     return GestureDetector(
       onTap: () {
         if (_currentIndex != 0) setState(() => _currentIndex = 0);
@@ -524,19 +563,22 @@ class _HomeScreenState extends State<HomeScreen> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
-          color: isSelected ? _accentColor : AppConstants.cardColor,
+          color: _selectedDuration == minutes ? _accentColor : AppConstants.cardColor,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Center(
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              color: isSelected ? Colors.black : AppConstants.textPrimary,
-              height: 1.1,
-              letterSpacing: -0.5,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+                color: _selectedDuration == minutes ? Colors.black : AppConstants.textPrimary,
+                height: 1.1,
+                letterSpacing: -0.5,
+              ),
             ),
           ),
         ),
@@ -558,7 +600,7 @@ class _HomeScreenState extends State<HomeScreen> {
               alignment: Alignment.center,
               children: [
                 ListWheelScrollView.useDelegate(
-                  controller: _wheelController, // Safe to use directly now
+                  controller: _wheelController,
                   itemExtent: 14,
                   perspective: 0.005,
                   diameterRatio: 2.5,
@@ -567,7 +609,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     final newDuration = index + 1;
                     if (_selectedDuration != newDuration) {
                       setState(() => _selectedDuration = newDuration);
-                      // Save the choice!
                       LocalStorageService.saveLastSelectedDuration(newDuration);
                     }
                   },
@@ -646,17 +687,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     _updateDuration(_selectedDuration + 1);
                   }
                 },
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(22),
-                ),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
                 child: const SizedBox(
                   width: double.infinity,
                   height: 44,
-                  child: Icon(
-                    Icons.keyboard_arrow_up_rounded,
-                    color: AppConstants.textPrimary,
-                    size: 28,
-                  ),
+                  child: Icon(Icons.keyboard_arrow_up_rounded, color: AppConstants.textPrimary, size: 28),
                 ),
               ),
               Container(height: 2, color: AppConstants.borderColor),
@@ -667,17 +702,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     _updateDuration(_selectedDuration - 1);
                   }
                 },
-                borderRadius: const BorderRadius.vertical(
-                  bottom: Radius.circular(22),
-                ),
+                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(22)),
                 child: const SizedBox(
                   width: double.infinity,
                   height: 44,
-                  child: Icon(
-                    Icons.keyboard_arrow_down_rounded,
-                    color: AppConstants.textPrimary,
-                    size: 28,
-                  ),
+                  child: Icon(Icons.keyboard_arrow_down_rounded, color: AppConstants.textPrimary, size: 28),
                 ),
               ),
             ],
@@ -696,9 +725,7 @@ class _HomeScreenState extends State<HomeScreen> {
             if (!isLocking) {
               final sessionProvider = context.read<SessionProvider>();
               final result = await sessionProvider.startSession(
-                _selectedDuration,
-                context,
-              );
+                  _selectedDuration, context);
 
               if (result == SessionStartResult.accessibilityDenied) {
                 _showPermissionDialog();
@@ -750,10 +777,7 @@ class _HomeScreenState extends State<HomeScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: const Text(
           'Permission Required',
-          style: TextStyle(
-            color: AppConstants.textPrimary,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(color: AppConstants.textPrimary, fontWeight: FontWeight.bold),
         ),
         content: const Text(
           'To block distractions effectively, blockit needs Accessibility Service permission. Please enable "Blockit Accessibility" in the settings.',
@@ -762,27 +786,19 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: AppConstants.textMuted),
-            ),
+            child: const Text('Cancel', style: TextStyle(color: AppConstants.textMuted)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: AppConstants.primaryOrange,
               foregroundColor: Colors.black,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             onPressed: () {
               Navigator.pop(context);
               PlatformChannelHelper.openAccessibilitySettings();
             },
-            child: const Text(
-              'Open Settings',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
+            child: const Text('Open Settings', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),

@@ -15,21 +15,13 @@ class ActiveSessionScreen extends StatefulWidget {
 class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
   Timer? _inactivityTimer;
   bool _isDimmed = false;
-
-  // Cache the provider reference so we can safely access it in dispose()
   late SessionProvider _sessionProvider;
 
   @override
   void initState() {
     super.initState();
-
-    // Save the reference securely while the widget is fully active
     _sessionProvider = context.read<SessionProvider>();
-
     _resetInactivityTimer();
-
-    // Register the undim callback so the provider can wake the screen
-    // before navigating away when the session ends naturally
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _sessionProvider.onUndimRequested = _undim;
     });
@@ -38,9 +30,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
   @override
   void dispose() {
     _inactivityTimer?.cancel();
-    // Clear the callback so there's no stale reference using the cached provider
     _sessionProvider.onUndimRequested = null;
-
     super.dispose();
   }
 
@@ -71,6 +61,9 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
     final minutes = (remaining % 3600) ~/ 60;
     final seconds = remaining % 60;
 
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+
     return Listener(
       onPointerDown: _onUserInteraction,
       onPointerMove: _onUserInteraction,
@@ -89,7 +82,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const SizedBox(height: 30),
+                  SizedBox(height: isLandscape ? 10 : 30),
 
                   const Text(
                     'SESSION ACTIVE',
@@ -113,29 +106,61 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
 
                   const Spacer(),
 
-                  if (hours > 0) ...[
-                    _buildTimeBlock(
-                      hours.toString().padLeft(2, '0'),
-                      Colors.white,
+                  // Responsive Timer Layout
+                  if (isLandscape)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        if (hours > 0) ...[
+                          _buildTimeBlock(
+                            hours.toString().padLeft(2, '0'),
+                            Colors.white,
+                            true,
+                          ),
+                          _buildSeparator(),
+                        ],
+                        _buildTimeBlock(
+                          minutes.toString().padLeft(2, '0'),
+                          Colors.white,
+                          true,
+                        ),
+                        _buildSeparator(),
+                        _buildTimeBlock(
+                          seconds.toString().padLeft(2, '0'),
+                          Colors.white,
+                          true,
+                        ),
+                      ],
+                    )
+                  else
+                    Column(
+                      children: [
+                        if (hours > 0)
+                          _buildTimeBlock(
+                            hours.toString().padLeft(2, '0'),
+                            Colors.white,
+                            false,
+                          ),
+                        _buildTimeBlock(
+                          minutes.toString().padLeft(2, '0'),
+                          Colors.white,
+                          false,
+                        ),
+                        _buildTimeBlock(
+                          seconds.toString().padLeft(2, '0'),
+                          Colors.white,
+                          false,
+                        ),
+                      ],
                     ),
-                  ],
-
-                  _buildTimeBlock(
-                    minutes.toString().padLeft(2, '0'),
-                    Colors.white,
-                  ),
-
-                  _buildTimeBlock(
-                    seconds.toString().padLeft(2, '0'),
-                    Colors.white,
-                  ),
 
                   const Spacer(),
 
                   Padding(
-                    padding: const EdgeInsets.symmetric(
+                    padding: EdgeInsets.symmetric(
                       horizontal: 40,
-                      vertical: 40,
+                      vertical: isLandscape ? 10 : 40,
                     ),
                     child: _HoldToEjectButton(
                       onEject: () {
@@ -153,16 +178,30 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
     );
   }
 
-  Widget _buildTimeBlock(String value, Color color) {
+  Widget _buildTimeBlock(String value, Color color, bool isLandscape) {
     return Text(
       value,
       style: TextStyle(
-        fontSize: 160,
+        fontSize: isLandscape ? 100 : 160,
         fontWeight: FontWeight.w900,
         color: color,
         height: 0.9,
         letterSpacing: -8.0,
         fontFeatures: const [FontFeature.tabularFigures()],
+      ),
+    );
+  }
+
+  Widget _buildSeparator() {
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 16),
+      child: Text(
+        ':',
+        style: TextStyle(
+          fontSize: 70,
+          fontWeight: FontWeight.w900,
+          color: Colors.white54,
+        ),
       ),
     );
   }
