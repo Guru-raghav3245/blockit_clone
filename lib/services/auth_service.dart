@@ -10,26 +10,31 @@ class AuthService {
   // Get the current user
   User? get currentUser => _auth.currentUser;
 
-  // Google Sign-In Logic
+  // Google Sign-In Logic (v7.0.0+ architecture)
   Future<UserCredential?> signInWithGoogle() async {
     try {
-      // 1. Mandatory initialization for v7+ passing your specific serverClientId
+      // 1. Mandatory initialization passing your specific serverClientId
       await GoogleSignIn.instance.initialize(
-        serverClientId: '285912336612-lgjrceu8qmb96b5ak0jo006e3pbs61pk.apps.googleusercontent.com',
+        serverClientId:
+            '285912336612-lgjrceu8qmb96b5ak0jo006e3pbs61pk.apps.googleusercontent.com',
       );
 
-      // 2. Authentication (Identity) - Replaces the old .signIn()
-      final GoogleSignInAccount? googleUser = await GoogleSignIn.instance.authenticate();
+      // 2. Authentication (Identity)
+      final GoogleSignInAccount? googleUser = await GoogleSignIn.instance
+          .authenticate();
 
       // If the user cancels the login dialog, stop here
       if (googleUser == null) return null;
 
       // 3. Authorization (Permissions) - Fetch the accessToken separately
       final List<String> scopes = ['email'];
-      final clientAuth = await googleUser.authorizationClient.authorizeScopes(scopes);
+      final clientAuth = await googleUser.authorizationClient.authorizeScopes(
+        scopes,
+      );
 
       // 4. Get the idToken
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
 
       // 5. Create a new credential for Firebase using both tokens
       final AuthCredential credential = GoogleAuthProvider.credential(
@@ -48,6 +53,11 @@ class AuthService {
   // Sign Out
   Future<void> signOut() async {
     try {
+      // Ensure initialization before calling signOut
+      await GoogleSignIn.instance.initialize(
+        serverClientId:
+            '285912336612-lgjrceu8qmb96b5ak0jo006e3pbs61pk.apps.googleusercontent.com',
+      );
       await GoogleSignIn.instance.signOut();
       await _auth.signOut();
     } catch (e) {

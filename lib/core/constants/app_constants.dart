@@ -26,8 +26,8 @@ class AppConstants {
   static const String keyTotalMinutes = 'total_minutes_locked';
   static const String keySessionsList = 'sessions_list';
   static const String keyParachutesUsed = 'parachutes_used';
-
-  // NEW: User Preferences Storage Keys
+  
+  // User Preferences Storage Keys
   static const String keyLastSelectedDuration = 'last_selected_duration';
   static const String keyLastStatsFilter = 'last_stats_filter';
 }

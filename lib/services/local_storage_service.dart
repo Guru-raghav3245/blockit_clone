@@ -69,11 +69,9 @@ class LocalStorageService {
     await prefs.setInt(AppConstants.keyParachutesUsed, 0);
   }
 
-  // ─── NEW: USER PREFERENCES ──────────────────────────────────────────────
-
+  // User Preferences Storage
   static Future<int> getLastSelectedDuration() async {
     final prefs = await _prefs;
-    // Default to 15 minutes if it's their first time
     return prefs.getInt(AppConstants.keyLastSelectedDuration) ?? 15;
   }
 
@@ -84,12 +82,39 @@ class LocalStorageService {
 
   static Future<int> getLastStatsFilter() async {
     final prefs = await _prefs;
-    // Default to 1 (Week) view
     return prefs.getInt(AppConstants.keyLastStatsFilter) ?? 1;
   }
 
   static Future<void> saveLastStatsFilter(int filterIndex) async {
     final prefs = await _prefs;
     await prefs.setInt(AppConstants.keyLastStatsFilter, filterIndex);
+  }
+
+  // ─── NEW: SYNC OPERATIONS ─────────────────────────────────────────────
+
+  // Bulk overwrite local storage (used when pulling from cloud)
+  static Future<void> overwriteAllData(
+    int tSessions,
+    int tMinutes,
+    int parachutes,
+    List<FreedomSession> sList,
+  ) async {
+    final prefs = await _prefs;
+    await prefs.setInt(AppConstants.keyTotalSessions, tSessions);
+    await prefs.setInt(AppConstants.keyTotalMinutes, tMinutes);
+    await prefs.setInt(AppConstants.keyParachutesUsed, parachutes);
+    await prefs.setString(
+      AppConstants.keySessionsList,
+      jsonEncode(sList.map((s) => s.toJson()).toList()),
+    );
+  }
+
+  // Wipe user data from device on logout (leaves duration/filter preferences intact)
+  static Future<void> clearAllStats() async {
+    final prefs = await _prefs;
+    await prefs.remove(AppConstants.keyTotalSessions);
+    await prefs.remove(AppConstants.keyTotalMinutes);
+    await prefs.remove(AppConstants.keyParachutesUsed);
+    await prefs.remove(AppConstants.keySessionsList);
   }
 }

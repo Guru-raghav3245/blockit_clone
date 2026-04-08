@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../providers/session_provider.dart';
+import '../../providers/stats_provider.dart';
 import '../../core/constants/app_constants.dart';
 import '../../services/local_storage_service.dart';
 import '../../services/auth_service.dart';
@@ -25,7 +26,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoadingPrefs = true;
 
   FixedExtentScrollController? _wheelController;
-  final AuthService _authService = AuthService(); // Add Auth Service
+  final AuthService _authService = AuthService();
 
   @override
   void initState() {
@@ -370,8 +371,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ─── AUTH TOP BAR LOGIC ───────────────────────────────────────────────
-
+  // --- Updated Auth Top Bar Logic ---
   Widget _buildTopBar() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -386,7 +386,6 @@ class _HomeScreenState extends State<HomeScreen> {
             color: AppConstants.textPrimary,
           ),
         ),
-        // Listen to Auth State to change the icon
         StreamBuilder<User?>(
           stream: _authService.authStateChanges,
           builder: (context, snapshot) {
@@ -398,14 +397,35 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (isLoggedIn) {
                   _showLogoutDialog(user);
                 } else {
-                  // Trigger Google Sign In
-                  final credential = await _authService.signInWithGoogle();
-                  if (credential == null && mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Sign-in cancelled or failed.'),
+                  // Pre-capture navigator to avoid context issues
+                  final navigator = Navigator.of(context);
+
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (_) => const Center(
+                      child: CircularProgressIndicator(
+                        color: AppConstants.primaryOrange,
                       ),
-                    );
+                    ),
+                  );
+
+                  try {
+                    final credential = await _authService.signInWithGoogle();
+                    if (credential?.user != null && mounted) {
+                      await context.read<StatsProvider>().loginAndSync(
+                        credential!.user!.uid,
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text('Sync Error: $e')));
+                    }
+                  } finally {
+                    // Always remove loading circle
+                    if (navigator.canPop()) navigator.pop();
                   }
                 }
               },
@@ -438,7 +458,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void _showLogoutDialog(User user) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (innerContext) => AlertDialog(
         backgroundColor: AppConstants.cardColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: Text(
@@ -448,13 +468,13 @@ class _HomeScreenState extends State<HomeScreen> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        content: Text(
-          'Logged in as ${user.email}\n\nDo you want to log out?',
-          style: const TextStyle(color: AppConstants.textSecondary),
+        content: const Text(
+          'Logged in as your email\n\nDo you want to log out? This will clear local data, but it is safely backed up in the cloud.',
+          style: TextStyle(color: AppConstants.textSecondary),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(innerContext),
             child: const Text(
               'Cancel',
               style: TextStyle(color: AppConstants.textMuted),
@@ -469,8 +489,31 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             onPressed: () async {
-              Navigator.pop(context);
-              await _authService.signOut();
+              // 1. Close the logout confirmation dialog immediately
+              Navigator.pop(innerContext);
+
+              // 2. Capture navigator for the loading dialog
+              final navigator = Navigator.of(context);
+
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (_) => const Center(
+                  child: CircularProgressIndicator(
+                    color: AppConstants.primaryOrange,
+                  ),
+                ),
+              );
+
+              try {
+                await _authService.signOut();
+                if (mounted) {
+                  await context.read<StatsProvider>().clearLocalAndMemory();
+                }
+              } finally {
+                // 3. Ensure loading circle is ALWAYS removed
+                if (navigator.canPop()) navigator.pop();
+              }
             },
             child: const Text(
               'Log Out',
@@ -481,8 +524,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
-  // ────────────────────────────────────────────────────────────────────────
 
   Widget _buildBigDisplayCard(bool isLandscape) {
     final hours = (_selectedDuration ~/ 60).toString().padLeft(2, '0');
