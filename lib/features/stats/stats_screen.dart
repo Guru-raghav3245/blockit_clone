@@ -36,8 +36,6 @@ class _StatsScreenState extends State<StatsScreen> {
     }
   }
 
-  // ─── STAT CALCULATIONS ──────────────────────────────────────────────────
-
   int _getDisciplineScore(StatsProvider stats) {
     if (stats.totalSessions == 0) return 100;
     final int successful = stats.totalSessions - stats.parachutesUsed;
@@ -110,8 +108,6 @@ class _StatsScreenState extends State<StatsScreen> {
     return streak;
   }
 
-  // ─── DYNAMIC CHART DATA GEN ─────────────────────────────────────────────
-
   List<_ChartBarData> _getChartData(StatsProvider stats) {
     final now = DateTime.now();
     List<_ChartBarData> data = [];
@@ -122,7 +118,7 @@ class _StatsScreenState extends State<StatsScreen> {
         if (s.startTime.day == now.day &&
             s.startTime.month == now.month &&
             s.startTime.year == now.year) {
-          int block = s.startTime.hour ~/ 4; // 0-5
+          int block = s.startTime.hour ~/ 4;
           values[block] += s.durationMinutes;
         }
       }
@@ -157,7 +153,7 @@ class _StatsScreenState extends State<StatsScreen> {
 
       for (int i = 0; i < 7; i++) {
         final d = startOfWeek.add(Duration(days: i));
-        String letter = DateFormat('E').format(d)[0]; // M, T, W, etc.
+        String letter = DateFormat('E').format(d)[0];
         bool isCurrentDay =
             (d.day == now.day && d.month == now.month && d.year == now.year);
 
@@ -204,8 +200,6 @@ class _StatsScreenState extends State<StatsScreen> {
     return data;
   }
 
-  // ─── BUILDER ────────────────────────────────────────────────────────────
-
   @override
   Widget build(BuildContext context) {
     final statsProvider = context.watch<StatsProvider>();
@@ -227,8 +221,6 @@ class _StatsScreenState extends State<StatsScreen> {
       ),
     );
   }
-
-  // ─── TAB 0: OVERVIEW ────────────────────────────────────────────────────
 
   Widget _buildOverviewTab(StatsProvider stats) {
     final totalHours = (stats.totalMinutes / 60).floor();
@@ -269,7 +261,7 @@ class _StatsScreenState extends State<StatsScreen> {
                     style: const TextStyle(
                       fontSize: 48,
                       fontWeight: FontWeight.w900,
-                      color: AppConstants.primaryOrange,
+                      color: AppConstants.primaryAccent,
                       height: 1,
                     ),
                   ),
@@ -280,7 +272,7 @@ class _StatsScreenState extends State<StatsScreen> {
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
-                        color: AppConstants.primaryOrange,
+                        color: AppConstants.primaryAccent,
                       ),
                     ),
                   ),
@@ -289,7 +281,7 @@ class _StatsScreenState extends State<StatsScreen> {
                     style: const TextStyle(
                       fontSize: 48,
                       fontWeight: FontWeight.w900,
-                      color: AppConstants.primaryOrange,
+                      color: AppConstants.primaryAccent,
                       height: 1,
                     ),
                   ),
@@ -300,7 +292,7 @@ class _StatsScreenState extends State<StatsScreen> {
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
-                        color: AppConstants.primaryOrange,
+                        color: AppConstants.primaryAccent,
                       ),
                     ),
                   ),
@@ -335,7 +327,7 @@ class _StatsScreenState extends State<StatsScreen> {
                             value: discipline / 100,
                             strokeWidth: 6,
                             backgroundColor: AppConstants.borderColor,
-                            color: AppConstants.primaryOrange,
+                            color: AppConstants.primaryAccent,
                             strokeCap: StrokeCap.round,
                           ),
                         ),
@@ -378,12 +370,12 @@ class _StatsScreenState extends State<StatsScreen> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: AppConstants.primaryOrange.withOpacity(0.15),
+                        color: AppConstants.primaryAccent.withOpacity(0.15),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
                         Icons.local_fire_department_rounded,
-                        color: AppConstants.primaryOrange,
+                        color: AppConstants.primaryAccent,
                         size: 32,
                       ),
                     ),
@@ -498,8 +490,6 @@ class _StatsScreenState extends State<StatsScreen> {
     );
   }
 
-  // ─── TAB 1: TRENDS & CHARTS ──────────────────────────────────────────────
-
   Widget _buildTrendsTab(StatsProvider stats) {
     final chartData = _getChartData(stats);
     final maxMinutes = chartData.isEmpty
@@ -595,7 +585,7 @@ class _StatsScreenState extends State<StatsScreen> {
                 style: TextStyle(
                   fontSize: 14,
                   color: _touchedBarIndex != null
-                      ? AppConstants.primaryOrange
+                      ? AppConstants.primaryAccent
                       : AppConstants.textSecondary,
                   fontWeight: FontWeight.w600,
                 ),
@@ -616,17 +606,17 @@ class _StatsScreenState extends State<StatsScreen> {
 
                     Color barColor;
                     if (isTouched) {
-                      barColor = AppConstants.primaryOrange;
+                      barColor = AppConstants.primaryAccent;
                     } else if (isCurrent) {
-                      barColor = AppConstants.primaryOrange.withOpacity(0.8);
+                      barColor = AppConstants.primaryAccent.withOpacity(0.8);
                     } else if (dataPoint.value > 0) {
-                      barColor = AppConstants.primaryOrange.withOpacity(0.3);
+                      barColor = AppConstants.primaryAccent.withOpacity(0.3);
                     } else {
                       barColor = AppConstants.borderColor;
                     }
 
                     Color labelColor = (isTouched || isCurrent)
-                        ? AppConstants.primaryOrange
+                        ? AppConstants.primaryAccent
                         : AppConstants.textMuted;
 
                     return GestureDetector(
@@ -743,7 +733,7 @@ class _StatsScreenState extends State<StatsScreen> {
                       style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w800,
-                        color: AppConstants.primaryOrange,
+                        color: AppConstants.primaryAccent,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -773,24 +763,23 @@ class _StatsScreenState extends State<StatsScreen> {
             _selectedFilterIndex = index;
             _touchedBarIndex = null;
           });
-          // SAVE CHOICE
           LocalStorageService.saveLastStatsFilter(index);
         },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 10),
+          padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: isSelected ? AppConstants.borderColor : Colors.transparent,
+            color: isSelected ? AppConstants.primaryAccent : Colors.transparent,
             borderRadius: BorderRadius.circular(26),
           ),
           alignment: Alignment.center,
           child: Text(
             label,
             style: TextStyle(
-              fontSize: 13,
-              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
               color: isSelected
-                  ? AppConstants.textPrimary
+                  ? AppConstants.textDark
                   : AppConstants.textMuted,
             ),
           ),
@@ -798,8 +787,6 @@ class _StatsScreenState extends State<StatsScreen> {
       ),
     );
   }
-
-  // ─── TAB 2: HISTORY ──────────────────────────────────────────────────────
 
   Widget _buildHistoryTab(StatsProvider statsProvider) {
     return Column(

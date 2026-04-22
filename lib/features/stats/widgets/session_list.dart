@@ -30,13 +30,18 @@ class SessionList extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: AppConstants.primaryOrange.withOpacity(0.15),
+                  color: AppConstants.primaryAccent.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Center(
                   child: Text(
                     '${session.durationMinutes}',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppConstants.primaryOrange, height: 1),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: AppConstants.primaryAccent,
+                      height: 1,
+                    ),
                   ),
                 ),
               ),
@@ -47,12 +52,19 @@ class SessionList extends StatelessWidget {
                   children: [
                     Text(
                       '${session.durationMinutes} minutes',
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppConstants.textPrimary),
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: AppConstants.textPrimary,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       date,
-                      style: const TextStyle(fontSize: 13, color: AppConstants.textMuted),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppConstants.textMuted,
+                      ),
                     ),
                   ],
                 ),
@@ -61,15 +73,26 @@ class SessionList extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: AppConstants.primaryOrange.withOpacity(0.15),
+                    color: AppConstants.primaryAccent.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.flight_takeoff_rounded, size: 14, color: AppConstants.primaryOrange),
+                      Icon(
+                        Icons.flight_takeoff_rounded,
+                        size: 14,
+                        color: AppConstants.primaryAccent,
+                      ),
                       SizedBox(width: 4),
-                      Text('Parachute', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppConstants.primaryOrange)),
+                      Text(
+                        'Parachute',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppConstants.primaryAccent,
+                        ),
+                      ),
                     ],
                   ),
                 ),

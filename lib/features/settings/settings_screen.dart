@@ -63,7 +63,6 @@ class _SettingsScreenState extends State<SettingsScreen>
         children: [
           const _SectionLabel(label: 'PERMISSIONS'),
           const SizedBox(height: 16),
-
           _PermissionTile(
             icon: Icons.security_rounded,
             title: 'Device Admin',
@@ -76,9 +75,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                     await _checkStatuses();
                   },
           ),
-
           const SizedBox(height: 12),
-
           _PermissionTile(
             icon: Icons.accessibility_new_rounded,
             title: 'Accessibility Service',
@@ -93,12 +90,9 @@ class _SettingsScreenState extends State<SettingsScreen>
                 ? null
                 : 'Find "Blockit Accessibility" in the list and enable it',
           ),
-
           const SizedBox(height: 40),
-
           const _SectionLabel(label: 'PARACHUTE'),
           const SizedBox(height: 16),
-
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
@@ -112,12 +106,12 @@ class _SettingsScreenState extends State<SettingsScreen>
                   width: 52,
                   height: 52,
                   decoration: BoxDecoration(
-                    color: AppConstants.primaryOrange.withOpacity(0.15),
+                    color: AppConstants.primaryAccent.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: const Icon(
                     Icons.flight_takeoff_rounded,
-                    color: AppConstants.primaryOrange,
+                    color: AppConstants.primaryAccent,
                     size: 26,
                   ),
                 ),
@@ -153,22 +147,21 @@ class _SettingsScreenState extends State<SettingsScreen>
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: AppConstants.primaryOrange.withOpacity(0.15),
+                    color: AppConstants.primaryAccent.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
-                    '${stats.parachutesUsed}', // Removed the "/1" limit
+                    '${stats.parachutesUsed}',
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: AppConstants.primaryOrange,
+                      color: AppConstants.primaryAccent,
                     ),
                   ),
                 ),
               ],
             ),
           ),
-          // Removed the "Parachute used" warning message completely
         ],
       ),
     );
@@ -301,7 +294,7 @@ class _PermissionTile extends StatelessWidget {
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: AppConstants.primaryOrange,
+                      color: AppConstants.primaryAccent,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Text(
@@ -309,7 +302,7 @@ class _PermissionTile extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
-                        color: Colors.black,
+                        color: AppConstants.textDark,
                       ),
                     ),
                   ),
@@ -337,7 +330,7 @@ class _PermissionTile extends StatelessWidget {
               hint!,
               style: const TextStyle(
                 fontSize: 13.5,
-                color: AppConstants.primaryOrange,
+                color: AppConstants.primaryAccent,
                 height: 1.5,
               ),
             ),

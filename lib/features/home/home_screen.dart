@@ -53,12 +53,8 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  Color get _accentColor {
-    if (_selectedDuration < 30) return const Color(0xFFDCD0C7);
-    if (_selectedDuration < 60) return const Color(0xFFEED2C2);
-    if (_selectedDuration < 120) return const Color(0xFFE49F80);
-    return const Color(0xFFD85C3A);
-  }
+  // FORCE UNIFIED PEACH ACCENT
+  Color get _accentColor => AppConstants.primaryAccent;
 
   String get _difficultyLabel {
     if (_selectedDuration < 30) return "Easy";
@@ -190,7 +186,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       child: Icon(
                         _activeStatsIcon,
-                        color: Colors.black,
+                        color: AppConstants.textDark,
                         size: 26,
                       ),
                     ),
@@ -215,7 +211,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? Colors.black : AppConstants.textMuted,
+            color: isSelected ? AppConstants.textDark : AppConstants.textMuted,
             fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
             fontSize: 13,
             letterSpacing: 0.5,
@@ -269,7 +265,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       child: const Icon(
                         Icons.show_chart_rounded,
-                        color: Colors.black,
+                        color: AppConstants.textDark,
                         size: 26,
                       ),
                     ),
@@ -298,7 +294,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         child: Icon(
           icon,
-          color: isSelected ? Colors.black : AppConstants.textMuted,
+          color: isSelected ? AppConstants.textDark : AppConstants.textMuted,
           size: 26,
         ),
       ),
@@ -371,7 +367,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- Updated Auth Top Bar Logic ---
   Widget _buildTopBar() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -397,19 +392,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (isLoggedIn) {
                   _showLogoutDialog(user);
                 } else {
-                  // Pre-capture navigator to avoid context issues
                   final navigator = Navigator.of(context);
-
                   showDialog(
                     context: context,
                     barrierDismissible: false,
                     builder: (_) => const Center(
                       child: CircularProgressIndicator(
-                        color: AppConstants.primaryOrange,
+                        color: AppConstants.primaryAccent,
                       ),
                     ),
                   );
-
                   try {
                     final credential = await _authService.signInWithGoogle();
                     if (credential?.user != null && mounted) {
@@ -424,7 +416,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       ).showSnackBar(SnackBar(content: Text('Sync Error: $e')));
                     }
                   } finally {
-                    // Always remove loading circle
                     if (navigator.canPop()) navigator.pop();
                   }
                 }
@@ -439,12 +430,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       width: 36,
                       height: 36,
                       decoration: const BoxDecoration(
-                        color: AppConstants.textPrimary,
+                        color: AppConstants.primaryAccent,
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
                         Icons.person,
-                        color: Colors.black,
+                        color: AppConstants.textDark,
                         size: 20,
                       ),
                     ),
@@ -489,29 +480,23 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             onPressed: () async {
-              // 1. Close the logout confirmation dialog immediately
               Navigator.pop(innerContext);
-
-              // 2. Capture navigator for the loading dialog
               final navigator = Navigator.of(context);
-
               showDialog(
                 context: context,
                 barrierDismissible: false,
                 builder: (_) => const Center(
                   child: CircularProgressIndicator(
-                    color: AppConstants.primaryOrange,
+                    color: AppConstants.primaryAccent,
                   ),
                 ),
               );
-
               try {
                 await _authService.signOut();
                 if (mounted) {
                   await context.read<StatsProvider>().clearLocalAndMemory();
                 }
               } finally {
-                // 3. Ensure loading circle is ALWAYS removed
                 if (navigator.canPop()) navigator.pop();
               }
             },
@@ -627,7 +612,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Text(
                         _difficultyLabel,
                         style: TextStyle(
-                          color: Colors.black,
+                          color: AppConstants.textDark,
                           fontWeight: FontWeight.w800,
                           fontSize: isLandscape ? 12 : 14,
                         ),
@@ -703,7 +688,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 fontSize: 24,
                 fontWeight: FontWeight.w700,
                 color: _selectedDuration == minutes
-                    ? Colors.black
+                    ? AppConstants.textDark
                     : AppConstants.textPrimary,
                 height: 1.1,
                 letterSpacing: -0.5,
@@ -743,14 +728,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   },
                   childDelegate: ListWheelChildBuilderDelegate(
                     builder: (context, index) {
-                      bool isOrangeIndicator = (index + 1) % 15 == 0;
+                      bool isAccentIndicator = (index + 1) % 15 == 0;
                       return Center(
                         child: Container(
-                          width: isOrangeIndicator ? 28 : 16,
+                          width: isAccentIndicator ? 28 : 16,
                           height: 3,
                           decoration: BoxDecoration(
-                            color: isOrangeIndicator
-                                ? AppConstants.primaryOrange
+                            color: isAccentIndicator
+                                ? AppConstants.primaryAccent
                                 : Colors.white24,
                             borderRadius: BorderRadius.circular(2),
                           ),
@@ -896,14 +881,14 @@ class _HomeScreenState extends State<HomeScreen> {
                       width: 24,
                       height: 24,
                       child: CircularProgressIndicator(
-                        color: Colors.black,
+                        color: AppConstants.textDark,
                         strokeWidth: 3,
                       ),
                     ),
                   )
                 : const Icon(
                     Icons.play_arrow_rounded,
-                    color: Colors.black,
+                    color: AppConstants.textDark,
                     size: 36,
                   ),
           ),
@@ -939,8 +924,8 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppConstants.primaryOrange,
-              foregroundColor: Colors.black,
+              backgroundColor: AppConstants.primaryAccent,
+              foregroundColor: AppConstants.textDark,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),

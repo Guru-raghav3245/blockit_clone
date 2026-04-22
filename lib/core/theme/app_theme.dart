@@ -7,9 +7,9 @@ class AppTheme {
     useMaterial3: true,
     brightness: Brightness.dark,
     colorScheme: ColorScheme.fromSeed(
-      seedColor: AppConstants.primaryOrange,
+      seedColor: AppConstants.primaryAccent,
       brightness: Brightness.dark,
-      primary: AppConstants.primaryOrange,
+      primary: AppConstants.primaryAccent,
       surface: AppConstants.surfaceColor,
       background: AppConstants.backgroundColor,
       onBackground: AppConstants.textPrimary,

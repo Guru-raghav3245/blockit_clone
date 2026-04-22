@@ -28,7 +28,6 @@ class SessionCompleteScreen extends StatelessWidget {
       onPopInvokedWithResult: (didPop, result) async {},
       child: Scaffold(
         backgroundColor: Colors.black,
-        // LayoutBuilder & SingleChildScrollView allow scrolling if screen is too short (Landscape)
         body: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -41,7 +40,6 @@ class SessionCompleteScreen extends StatelessWidget {
                       child: Column(
                         children: [
                           const SizedBox(height: 20),
-
                           const Text(
                             AppConstants.appName,
                             style: TextStyle(
@@ -51,10 +49,8 @@ class SessionCompleteScreen extends StatelessWidget {
                               color: Colors.white,
                             ),
                           ),
-
                           const Spacer(),
                           const SizedBox(height: 24),
-
                           ClipRRect(
                             borderRadius: BorderRadius.circular(24),
                             child: Container(
@@ -71,7 +67,7 @@ class SessionCompleteScreen extends StatelessWidget {
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
                                         border: Border.all(
-                                          color: AppConstants.primaryOrange,
+                                          color: AppConstants.primaryAccent,
                                           width: 2,
                                         ),
                                       ),
@@ -86,7 +82,7 @@ class SessionCompleteScreen extends StatelessWidget {
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
                                         border: Border.all(
-                                          color: AppConstants.primaryOrange,
+                                          color: AppConstants.primaryAccent,
                                           width: 1.5,
                                         ),
                                       ),
@@ -101,9 +97,7 @@ class SessionCompleteScreen extends StatelessWidget {
                                         width: 40,
                                         height: 40,
                                         decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
+                                          borderRadius: BorderRadius.circular(8),
                                           border: Border.all(
                                             color: AppConstants.borderColor,
                                             width: 4,
@@ -112,12 +106,10 @@ class SessionCompleteScreen extends StatelessWidget {
                                       ),
                                     ),
                                   ),
-
                                   Padding(
                                     padding: const EdgeInsets.all(32.0),
                                     child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         const Text(
                                           'Congratulations',
@@ -138,7 +130,6 @@ class SessionCompleteScreen extends StatelessWidget {
                                           ),
                                         ),
                                         const SizedBox(height: 48),
-
                                         GestureDetector(
                                           onTap: () {
                                             Share.share(
@@ -148,33 +139,28 @@ class SessionCompleteScreen extends StatelessWidget {
                                           },
                                           child: Container(
                                             padding: const EdgeInsets.symmetric(
-                                              horizontal: 24,
-                                              vertical: 12,
+                                              horizontal: 32,
+                                              vertical: 14,
                                             ),
                                             decoration: BoxDecoration(
-                                              color: Colors.transparent,
-                                              borderRadius:
-                                                  BorderRadius.circular(30),
-                                              border: Border.all(
-                                                color: Colors.white,
-                                                width: 1.5,
-                                              ),
+                                              color: AppConstants.primaryAccent,
+                                              borderRadius: BorderRadius.circular(30),
                                             ),
                                             child: const Row(
                                               mainAxisSize: MainAxisSize.min,
                                               children: [
                                                 Icon(
                                                   Icons.share_rounded,
-                                                  color: Colors.white,
+                                                  color: AppConstants.textDark,
                                                   size: 18,
                                                 ),
                                                 SizedBox(width: 8),
                                                 Text(
                                                   'Share',
                                                   style: TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 14,
-                                                    fontWeight: FontWeight.w700,
+                                                    color: AppConstants.textDark,
+                                                    fontSize: 15,
+                                                    fontWeight: FontWeight.w800,
                                                   ),
                                                 ),
                                               ],
@@ -188,9 +174,7 @@ class SessionCompleteScreen extends StatelessWidget {
                               ),
                             ),
                           ),
-
                           const SizedBox(height: 24),
-
                           GestureDetector(
                             onTap: () {
                               Navigator.popUntil(
@@ -212,10 +196,8 @@ class SessionCompleteScreen extends StatelessWidget {
                               ),
                             ),
                           ),
-
                           const Spacer(),
                           const SizedBox(height: 24),
-
                           Text(
                             'Today, you accumulated $todayMinutes\nminutes with no distractions',
                             textAlign: TextAlign.center,
@@ -225,7 +207,6 @@ class SessionCompleteScreen extends StatelessWidget {
                               height: 1.5,
                             ),
                           ),
-
                           const SizedBox(height: 40),
                         ],
                       ),

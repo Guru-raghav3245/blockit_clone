@@ -272,12 +272,13 @@ class _HoldToEjectButtonState extends State<_HoldToEjectButton>
         ),
         child: Stack(
           children: [
+            // Inside _HoldToEjectButtonState:
             FractionallySizedBox(
               alignment: Alignment.centerLeft,
               widthFactor: _controller.value,
               child: Container(
                 decoration: BoxDecoration(
-                  color: AppConstants.primaryOrange,
+                  color: AppConstants.primaryAccent,
                   borderRadius: BorderRadius.circular(32),
                 ),
               ),
@@ -289,8 +290,8 @@ class _HoldToEjectButtonState extends State<_HoldToEjectButton>
                   Icon(
                     Icons.flight_takeoff_rounded,
                     color: _controller.value > 0.4
-                        ? Colors.white
-                        : AppConstants.primaryOrange,
+                        ? AppConstants.textDark
+                        : AppConstants.primaryAccent,
                     size: 20,
                   ),
                   const SizedBox(width: 12),
@@ -298,7 +299,7 @@ class _HoldToEjectButtonState extends State<_HoldToEjectButton>
                     _controller.isCompleted ? 'EJECTING...' : 'HOLD TO EJECT',
                     style: TextStyle(
                       color: _controller.value > 0.4
-                          ? Colors.white
+                          ? AppConstants.textDark
                           : const Color(0xFF777777),
                       fontSize: 13,
                       fontWeight: FontWeight.w800,
