@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_constants.dart';
@@ -34,12 +35,6 @@ class _StatsScreenState extends State<StatsScreen> {
         _selectedFilterIndex = savedFilter;
       });
     }
-  }
-
-  int _getDisciplineScore(StatsProvider stats) {
-    if (stats.totalSessions == 0) return 100;
-    final int successful = stats.totalSessions - stats.parachutesUsed;
-    return ((successful / stats.totalSessions) * 100).clamp(0, 100).toInt();
   }
 
   int _getLongestBlock(List<FreedomSession> sessions) {
@@ -225,21 +220,15 @@ class _StatsScreenState extends State<StatsScreen> {
   Widget _buildOverviewTab(StatsProvider stats) {
     final totalHours = (stats.totalMinutes / 60).floor();
     final remainingMins = stats.totalMinutes % 60;
-    final discipline = _getDisciplineScore(stats);
     final streak = _calculateStreak(stats.sessions);
     final longestBlock = _getLongestBlock(stats.sessions);
     final primeTime = _getPrimeTime(stats.sessions);
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
       children: [
-        Container(
+        _SectionCard(
           padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: AppConstants.cardColor,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: AppConstants.borderColor),
-          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -263,6 +252,7 @@ class _StatsScreenState extends State<StatsScreen> {
                       fontWeight: FontWeight.w900,
                       color: AppConstants.primaryAccent,
                       height: 1,
+                      fontFeatures: [FontFeature.tabularFigures()],
                     ),
                   ),
                   const Padding(
@@ -283,6 +273,7 @@ class _StatsScreenState extends State<StatsScreen> {
                       fontWeight: FontWeight.w900,
                       color: AppConstants.primaryAccent,
                       height: 1,
+                      fontFeatures: [FontFeature.tabularFigures()],
                     ),
                   ),
                   const Padding(
@@ -304,103 +295,43 @@ class _StatsScreenState extends State<StatsScreen> {
 
         const SizedBox(height: 12),
 
-        Row(
-          children: [
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppConstants.cardColor,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: AppConstants.borderColor),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        SizedBox(
-                          width: 56,
-                          height: 56,
-                          child: CircularProgressIndicator(
-                            value: discipline / 100,
-                            strokeWidth: 6,
-                            backgroundColor: AppConstants.borderColor,
-                            color: AppConstants.primaryAccent,
-                            strokeCap: StrokeCap.round,
-                          ),
-                        ),
-                        Text(
-                          '$discipline%',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            color: AppConstants.textPrimary,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Discipline\nScore',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppConstants.textSecondary,
-                        height: 1.2,
-                      ),
-                    ),
-                  ],
-                ),
+        _SectionCard(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              _IconBadge(
+                icon: Icons.local_fire_department_rounded,
+                color: AppConstants.primaryAccent,
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppConstants.cardColor,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: AppConstants.borderColor),
-                ),
+              const SizedBox(width: 14),
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppConstants.primaryAccent.withOpacity(0.15),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.local_fire_department_rounded,
-                        color: AppConstants.primaryAccent,
-                        size: 32,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
                     Text(
-                      '$streak Days',
+                      '$streak days',
                       style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
                         color: AppConstants.textPrimary,
+                        height: 1.0,
+                        fontFeatures: [FontFeature.tabularFigures()],
                       ),
                     ),
+                    const SizedBox(height: 4),
                     const Text(
-                      'Current Streak',
+                      'Current streak',
                       style: TextStyle(
                         fontSize: 13,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w600,
                         color: AppConstants.textSecondary,
                       ),
                     ),
                   ],
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
 
         const SizedBox(height: 12),
@@ -408,13 +339,8 @@ class _StatsScreenState extends State<StatsScreen> {
         Row(
           children: [
             Expanded(
-              child: Container(
+              child: _SectionCard(
                 padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppConstants.cardColor,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: AppConstants.borderColor),
-                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -430,6 +356,7 @@ class _StatsScreenState extends State<StatsScreen> {
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
                         color: AppConstants.textPrimary,
+                        fontFeatures: [FontFeature.tabularFigures()],
                       ),
                     ),
                     const Text(
@@ -446,13 +373,8 @@ class _StatsScreenState extends State<StatsScreen> {
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Container(
+              child: _SectionCard(
                 padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppConstants.cardColor,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: AppConstants.borderColor),
-                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -539,15 +461,11 @@ class _StatsScreenState extends State<StatsScreen> {
     }
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
       children: [
-        Container(
+        _SectionCard(
           padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: AppConstants.cardColor,
-            borderRadius: BorderRadius.circular(30),
-            border: Border.all(color: AppConstants.borderColor),
-          ),
+          radius: 999,
           child: Row(
             children: [
               _buildFilterOption(0, 'Day'),
@@ -559,13 +477,9 @@ class _StatsScreenState extends State<StatsScreen> {
 
         const SizedBox(height: 24),
 
-        Container(
+        _SectionCard(
           padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
-          decoration: BoxDecoration(
-            color: AppConstants.cardColor,
-            borderRadius: BorderRadius.circular(32),
-            border: Border.all(color: AppConstants.borderColor),
-          ),
+          radius: 28,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -619,56 +533,20 @@ class _StatsScreenState extends State<StatsScreen> {
                         ? AppConstants.primaryAccent
                         : AppConstants.textMuted;
 
-                    return GestureDetector(
-                      onTapDown: (_) =>
-                          setState(() => _touchedBarIndex = index),
-                      onTapUp: (_) => setState(() => _touchedBarIndex = null),
-                      onTapCancel: () =>
-                          setState(() => _touchedBarIndex = null),
-                      child: Container(
-                        color: Colors.transparent,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            AnimatedOpacity(
-                              duration: const Duration(milliseconds: 200),
-                              opacity: isTouched ? 1.0 : 0.0,
-                              child: Text(
-                                '${dataPoint.value.toInt()}',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppConstants.textPrimary,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            AnimatedContainer(
-                              duration: const Duration(milliseconds: 300),
-                              curve: Curves.easeOutCubic,
-                              width: chartData.length > 5 ? 32 : 44,
-                              height: (heightFactor * 120).clamp(4.0, 120.0),
-                              decoration: BoxDecoration(
-                                color: barColor,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              dataPoint.label,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: isCurrent
-                                    ? FontWeight.w800
-                                    : FontWeight.w600,
-                                color: labelColor,
-                                height: 1.3,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                    return _ChartBar(
+                      label: dataPoint.label,
+                      value: dataPoint.value.toInt(),
+                      barColor: barColor,
+                      labelColor: labelColor,
+                      isTouched: isTouched,
+                      isCurrent: isCurrent,
+                      width: chartData.length > 5 ? 32 : 44,
+                      height: (heightFactor * 120).clamp(4.0, 120.0),
+                      onPressStart: () {
+                        HapticFeedback.selectionClick();
+                        setState(() => _touchedBarIndex = index);
+                      },
+                      onPressEnd: () => setState(() => _touchedBarIndex = null),
                     );
                   }),
                 ),
@@ -682,15 +560,10 @@ class _StatsScreenState extends State<StatsScreen> {
         Row(
           children: [
             Expanded(
-              child: Container(
+              child: _SectionCard(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 20,
-                ),
-                decoration: BoxDecoration(
-                  color: AppConstants.cardColor,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppConstants.borderColor),
                 ),
                 child: Column(
                   children: [
@@ -700,6 +573,7 @@ class _StatsScreenState extends State<StatsScreen> {
                         fontSize: 24,
                         fontWeight: FontWeight.w800,
                         color: AppConstants.textPrimary,
+                        fontFeatures: [FontFeature.tabularFigures()],
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -716,15 +590,10 @@ class _StatsScreenState extends State<StatsScreen> {
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Container(
+              child: _SectionCard(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 20,
-                ),
-                decoration: BoxDecoration(
-                  color: AppConstants.cardColor,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppConstants.borderColor),
                 ),
                 child: Column(
                   children: [
@@ -734,6 +603,7 @@ class _StatsScreenState extends State<StatsScreen> {
                         fontSize: 24,
                         fontWeight: FontWeight.w800,
                         color: AppConstants.primaryAccent,
+                        fontFeatures: [FontFeature.tabularFigures()],
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -814,6 +684,132 @@ class _StatsScreenState extends State<StatsScreen> {
         ),
         const SizedBox(height: 100),
       ],
+    );
+  }
+}
+
+class _SectionCard extends StatelessWidget {
+  final Widget child;
+  final EdgeInsets padding;
+  final double radius;
+
+  const _SectionCard({
+    required this.child,
+    required this.padding,
+    this.radius = 24,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        color: AppConstants.cardColor,
+        borderRadius: BorderRadius.circular(radius),
+        border: Border.all(color: AppConstants.borderColor),
+      ),
+      child: child,
+    );
+  }
+}
+
+class _IconBadge extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+
+  const _IconBadge({required this.icon, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.15),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(icon, color: color, size: 32),
+    );
+  }
+}
+
+class _ChartBar extends StatelessWidget {
+  final String label;
+  final int value;
+  final double width;
+  final double height;
+  final Color barColor;
+  final Color labelColor;
+  final bool isTouched;
+  final bool isCurrent;
+  final VoidCallback onPressStart;
+  final VoidCallback onPressEnd;
+
+  const _ChartBar({
+    required this.label,
+    required this.value,
+    required this.width,
+    required this.height,
+    required this.barColor,
+    required this.labelColor,
+    required this.isTouched,
+    required this.isCurrent,
+    required this.onPressStart,
+    required this.onPressEnd,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTapDown: (_) => onPressStart(),
+        onTapUp: (_) => onPressEnd(),
+        onTapCancel: onPressEnd,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              AnimatedOpacity(
+                duration: const Duration(milliseconds: 200),
+                opacity: isTouched ? 1.0 : 0.0,
+                child: Text(
+                  '$value',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: AppConstants.textPrimary,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 280),
+                curve: Curves.easeOutCubic,
+                width: width,
+                height: height,
+                decoration: BoxDecoration(
+                  color: barColor,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: isCurrent ? FontWeight.w800 : FontWeight.w600,
+                  color: labelColor,
+                  height: 1.3,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
