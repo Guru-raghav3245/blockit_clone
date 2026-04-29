@@ -2,7 +2,6 @@ package com.example.blockit_clone
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
-import android.graphics.Color
 import android.graphics.PixelFormat
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -10,9 +9,9 @@ import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
-import android.widget.TextView
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 
 class BlockitAccessibilityService : AccessibilityService() {
 
@@ -39,65 +38,97 @@ class BlockitAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (event == null) return
+        if (event == null || !isReelsBlockingEnabled) return
 
         val packageName = event.packageName?.toString() ?: return
+        if (packageName != "com.instagram.android") return
 
-        // Instagram Reels Blocking
-        if (isReelsBlockingEnabled && packageName == "com.instagram.android") {
-            when (event.eventType) {
-                AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED,
-                AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
+        if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
+            event.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) return
 
-                    val rootNode = rootInActiveWindow ?: return
+        val root = rootInActiveWindow ?: return
 
-                    if (isReelsDetected(rootNode)) {
-                        performGlobalAction(GLOBAL_ACTION_BACK)
-                        showReelsBlockedOverlay()
-                    }
-                }
-            }
+        Log.d("Blockit_Debug", "Instagram UI changed")
+
+        if (isInReelsSection(root)) {
+            Log.d("Blockit", "Reels section detected → Kicking out")
+            performGlobalAction(GLOBAL_ACTION_BACK)
+            showReelsBlockedOverlay()
         }
     }
 
-    private fun isReelsDetected(root: AccessibilityNodeInfo): Boolean {
+    /** Main detection logic - inspired by successful blockers like ScrollGuard */
+    private fun isInReelsSection(root: AccessibilityNodeInfo): Boolean {
         if (root == null) return false
-        if (containsReelsKeyword(root)) return true
-        return traverseForReels(root, 0)
+
+        // 1. Strongest signal: Reels video player is visible
+        if (hasReelsVideoPlayer(root)) {
+            Log.d("Blockit_Debug", "Detected Reels Video Player")
+            return true
+        }
+
+        // 2. We're in the dedicated Reels tab/feed (but not just the bottom tab label)
+        return hasReelsTabWithContent(root)
     }
 
-    private fun containsReelsKeyword(node: AccessibilityNodeInfo): Boolean {
-        val text = node.text?.toString() ?: ""
-        val contentDesc = node.contentDescription?.toString() ?: ""
-        val className = node.className?.toString() ?: ""
-        val viewId = node.viewIdResourceName ?: ""
+    private fun hasReelsVideoPlayer(root: AccessibilityNodeInfo): Boolean {
+        return traverse { node ->
+            val cls = node.className?.toString() ?: ""
+            val id = node.viewIdResourceName ?: ""
 
-        val keywords = listOf("Reels", "Reel", "Clips", "reel", "clips")
-
-        return keywords.any { kw ->
-            text.contains(kw, ignoreCase = true) ||
-            contentDesc.contains(kw, ignoreCase = true) ||
-            className.contains(kw, ignoreCase = true) ||
-            viewId.contains(kw, ignoreCase = true)
+            (cls.contains("SurfaceView", true) ||
+             cls.contains("TextureView", true) ||
+             cls.contains("VideoView", true) ||
+             id.contains("reel_viewer", true) ||
+             id.contains("clips_viewer", true))
         }
     }
 
-    private fun traverseForReels(node: AccessibilityNodeInfo?, depth: Int): Boolean {
-        if (node == null || depth > 8) return false
-        if (containsReelsKeyword(node)) return true
+    private fun hasReelsTabWithContent(root: AccessibilityNodeInfo): Boolean {
+        return traverse { node ->
+            val text = node.text?.toString() ?: ""
+            val desc = node.contentDescription?.toString() ?: ""
+            val viewId = node.viewIdResourceName ?: ""
+
+            val hasReelsText = text.equals("Reels", ignoreCase = true) || 
+                              desc.equals("Reels", ignoreCase = true)
+
+            if (!hasReelsText) return@traverse false
+
+            // Avoid bottom navigation tab
+            val isBottomNav = viewId.contains("bottom", true) && viewId.contains("tab", true)
+
+            // Good indicators that we're actually inside Reels content
+            val isReelsContent = viewId.contains("reel", true) ||
+                                viewId.contains("clips", true) ||
+                                viewId.contains("viewer", true) ||
+                                node.className?.toString()?.contains("RecyclerView", true) == true
+
+            val shouldBlock = hasReelsText && !isBottomNav && isReelsContent
+
+            if (shouldBlock) {
+                Log.d("Blockit_Debug", "Reels tab with content → ViewID: $viewId")
+            }
+            shouldBlock
+        }
+    }
+
+    private fun traverse(condition: (AccessibilityNodeInfo) -> Boolean): Boolean {
+        return traverseNode(rootInActiveWindow, 0, condition)
+    }
+
+    private fun traverseNode(node: AccessibilityNodeInfo?, depth: Int, condition: (AccessibilityNodeInfo) -> Boolean): Boolean {
+        if (node == null || depth > 15) return false
+        if (condition(node)) return true
 
         for (i in 0 until node.childCount) {
-            if (traverseForReels(node.getChild(i), depth + 1)) return true
+            if (traverseNode(node.getChild(i), depth + 1, condition)) return true
         }
         return false
     }
 
-    /**
-     * Shows a beautiful temporary overlay when Reels is blocked
-     */
     private fun showReelsBlockedOverlay() {
         try {
-            // Remove existing overlay if any
             removeOverlay()
 
             val inflater = LayoutInflater.from(this)
@@ -113,16 +144,10 @@ class BlockitAccessibilityService : AccessibilityService() {
                 gravity = Gravity.CENTER
             }
 
-            val windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
-            windowManager.addView(overlayView, params)
+            (getSystemService(WINDOW_SERVICE) as WindowManager).addView(overlayView, params)
 
-            // Auto dismiss after 1.8 seconds
-            handler.postDelayed({
-                removeOverlay()
-            }, 1800)
-
+            handler.postDelayed({ removeOverlay() }, 1600)
         } catch (e: Exception) {
-            // Fallback if overlay fails
             e.printStackTrace()
         }
     }
@@ -130,15 +155,13 @@ class BlockitAccessibilityService : AccessibilityService() {
     private fun removeOverlay() {
         try {
             overlayView?.let {
-                val windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
-                windowManager.removeView(it)
+                (getSystemService(WINDOW_SERVICE) as WindowManager).removeView(it)
                 overlayView = null
             }
         } catch (e: Exception) {}
     }
 
     override fun onInterrupt() {}
-
     override fun onDestroy() {
         removeOverlay()
         instance = null
