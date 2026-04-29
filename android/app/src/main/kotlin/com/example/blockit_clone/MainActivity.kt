@@ -29,14 +29,14 @@ class MainActivity : FlutterActivity() {
                             dpm.setLockTaskPackages(adminComponent, arrayOf(packageName))
                         } catch (e: Exception) {}
                         startLockTask()
-                        BlockitAccessibilityService.isBlockingEnabled = true
+                        BlockitAccessibilityService.isGeneralBlockingEnabled = true
                         result.success(true)
                     } else {
                         result.error("DEVICE_ADMIN_NOT_ACTIVE", "Activate Device Admin first", null)
                     }
                 }
                 "stopLockTask" -> {
-                    BlockitAccessibilityService.isBlockingEnabled = false
+                    BlockitAccessibilityService.isGeneralBlockingEnabled = false
                     stopLockTask()
                     result.success(true)
                 }
@@ -66,9 +66,21 @@ class MainActivity : FlutterActivity() {
                         PowerManager.ON_AFTER_RELEASE, 
                         "Blockit:WakeScreen"
                     )
-                    wakeLock.acquire(3000) // Keep screen on for 3 seconds
+                    wakeLock.acquire(3000)
                     result.success(true)
                 }
+
+                // ================== NEW: REELS BLOCKING ==================
+                "enableReelsBlocking" -> {
+                    val enable = call.argument<Boolean>("enable") ?: false
+                    BlockitAccessibilityService.isReelsBlockingEnabled = enable
+                    result.success(true)
+                }
+                "isReelsBlockingEnabled" -> {
+                    result.success(BlockitAccessibilityService.isReelsBlockingEnabled)
+                }
+                // =========================================================
+
                 else -> result.notImplemented()
             }
         }

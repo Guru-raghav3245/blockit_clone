@@ -13,6 +13,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     with WidgetsBindingObserver {
   bool _isDeviceAdminActive = false;
   bool _isAccessibilityEnabled = false;
+  bool _isReelsBlockingEnabled = false;
 
   @override
   void initState() {
@@ -36,10 +37,13 @@ class _SettingsScreenState extends State<SettingsScreen>
     final admin = await PlatformChannelHelper.isDeviceAdminActive();
     final accessibility =
         await PlatformChannelHelper.isAccessibilityServiceEnabled();
+    final reelsBlocking = await PlatformChannelHelper.isReelsBlockingEnabled();
+
     if (mounted) {
       setState(() {
         _isDeviceAdminActive = admin;
         _isAccessibilityEnabled = accessibility;
+        _isReelsBlockingEnabled = reelsBlocking;
       });
     }
   }
@@ -58,6 +62,7 @@ class _SettingsScreenState extends State<SettingsScreen>
         children: [
           const _SectionLabel(label: 'PERMISSIONS'),
           const SizedBox(height: 16),
+
           _PermissionTile(
             icon: Icons.security_rounded,
             title: 'Device Admin',
@@ -70,7 +75,9 @@ class _SettingsScreenState extends State<SettingsScreen>
                     await _checkStatuses();
                   },
           ),
+
           const SizedBox(height: 12),
+
           _PermissionTile(
             icon: Icons.accessibility_new_rounded,
             title: 'Accessibility Service',
@@ -85,6 +92,37 @@ class _SettingsScreenState extends State<SettingsScreen>
                 ? null
                 : 'Find "Blockit Accessibility" in the list and enable it',
           ),
+
+          const SizedBox(height: 32),
+          const _SectionLabel(label: 'CONTENT BLOCKING'),
+          const SizedBox(height: 16),
+
+          _PermissionTile(
+            icon: Icons.video_library_rounded,
+            title: 'Block Instagram Reels',
+            subtitle: 'Automatically blocks Reels tab and feed • Shows overlay',
+            isActive: _isReelsBlockingEnabled,
+            onTap: () async {
+              final newValue = !_isReelsBlockingEnabled;
+              await PlatformChannelHelper.enableReelsBlocking(newValue);
+              if (mounted) {
+                setState(() => _isReelsBlockingEnabled = newValue);
+              }
+            },
+          ),
+
+          if (_isReelsBlockingEnabled)
+            const Padding(
+              padding: EdgeInsets.only(top: 8, left: 20),
+              child: Text(
+                "When Reels is detected, you'll see a brief overlay and be taken back.",
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppConstants.textMuted,
+                  height: 1.4,
+                ),
+              ),
+            ),
         ],
       ),
     );

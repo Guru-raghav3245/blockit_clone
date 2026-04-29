@@ -5,6 +5,8 @@ class PlatformChannelHelper {
     'com.blockit/device_admin',
   );
 
+  // ================== EXISTING METHODS ==================
+
   static Future<bool> startLockTask() async {
     try {
       final result = await _channel.invokeMethod<bool>('startLockTask');
@@ -59,5 +61,29 @@ class PlatformChannelHelper {
     try {
       await _channel.invokeMethod('wakeScreen');
     } catch (e) {}
+  }
+
+  // ================== NEW: INSTAGRAM REELS BLOCKING ==================
+
+  /// Enable or disable Instagram Reels blocking
+  static Future<void> enableReelsBlocking(bool enable) async {
+    try {
+      await _channel.invokeMethod('enableReelsBlocking', {'enable': enable});
+    } catch (e) {
+      print('Error enabling reels blocking: $e');
+    }
+  }
+
+  /// Check if Reels blocking is currently enabled
+  static Future<bool> isReelsBlockingEnabled() async {
+    try {
+      final result = await _channel.invokeMethod<bool>(
+        'isReelsBlockingEnabled',
+      );
+      return result ?? false;
+    } catch (e) {
+      print('Error checking reels blocking status: $e');
+      return false;
+    }
   }
 }
