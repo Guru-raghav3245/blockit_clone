@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'core/theme/app_theme.dart';
 import 'providers/session_provider.dart';
 import 'providers/stats_provider.dart';
-import 'features/home/home_screen.dart';
+import 'features/splash/splash_screen.dart'; // Import statement added here
 
 class BlockitApp extends StatelessWidget {
   const BlockitApp({super.key});
@@ -19,7 +19,7 @@ class BlockitApp extends StatelessWidget {
         title: 'blockit',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
-        home: const HomeScreen(),
+        home: const SplashScreen(), // Changed from HomeScreen() to SplashScreen()
       ),
     );
   }
