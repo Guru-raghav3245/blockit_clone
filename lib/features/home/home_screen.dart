@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:home_widget/home_widget.dart';
 import '../../providers/session_provider.dart';
 import '../../providers/stats_provider.dart';
 import '../../core/constants/app_constants.dart';
@@ -12,6 +13,7 @@ import '../stats/stats_screen.dart';
 import '../../core/utils/platform_channel_helper.dart';
 import '../active_session/active_session_screen.dart';
 import '../../core/utils/app_routes.dart';
+import '../../core/utils/widget_helper.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -24,9 +26,12 @@ class _HomeScreenState extends State<HomeScreen> {
   ValueNotifier<int>? _duration;
   int _currentIndex = 0;
   int _statsTabIndex = 0;
+
   bool _isMainNavExpandedInStats = false;
   bool _isLoadingPrefs = true;
-  bool _transitionCompleted = false; // Performance flag to prevent transition animation lag
+  bool _transitionCompleted =
+      false; // Performance flag to optimize transition frame rates
+
   FixedExtentScrollController? _wheelController;
   final AuthService _authService = AuthService();
 
@@ -34,12 +39,13 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadUserPreferences();
+    _setupWidgetClickListener(); // Listen for home screen widget launcher taps
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Hook into the route animation context to defer heavy layouts until transition completes
+    // Intercept transition route parameters to delay heavy index tree mounts
     final animation = ModalRoute.of(context)?.animation;
     if (animation != null) {
       if (animation.isCompleted) {
@@ -59,7 +65,9 @@ class _HomeScreenState extends State<HomeScreen> {
           _transitionCompleted = true;
         });
       }
-      ModalRoute.of(context)?.animation?.removeStatusListener(_handleAnimationStatus);
+      ModalRoute.of(
+        context,
+      )?.animation?.removeStatusListener(_handleAnimationStatus);
     }
   }
 
@@ -74,6 +82,30 @@ class _HomeScreenState extends State<HomeScreen> {
         );
         _isLoadingPrefs = false;
       });
+      // Initial background sync with widget shared memory preference cache
+      WidgetHelper.updateWidgetDuration(savedDuration);
+    }
+  }
+
+  void _setupWidgetClickListener() {
+    // Process actions if app was entirely terminated in memory (Cold Start)
+    HomeWidget.initiallyLaunchedFromHomeWidget().then((uri) {
+      if (uri != null) _handleWidgetAction(uri);
+    });
+
+    // Process actions if app was already suspended in background stacks (Warm Start)
+    HomeWidget.widgetClicked.listen((uri) {
+      if (uri != null) _handleWidgetAction(uri);
+    });
+  }
+
+  void _handleWidgetAction(Uri uri) async {
+    if (uri.host == 'start') {
+      final savedDuration = await LocalStorageService.getLastSelectedDuration();
+      if (mounted) {
+        // Programmatically executes your session lock sequence instantly
+        context.read<SessionProvider>().startSession(savedDuration, context);
+      }
     }
   }
 
@@ -84,6 +116,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+  // FORCE UNIFIED PEACH ACCENT
   Color get _accentColor => AppConstants.primaryAccent;
 
   String _difficultyLabelFor(int minutes) {
@@ -99,6 +132,10 @@ class _HomeScreenState extends State<HomeScreen> {
     if (notifier.value == newDuration) return;
     notifier.value = newDuration;
     LocalStorageService.saveLastSelectedDuration(newDuration);
+
+    // Updates home screen widget selection presentation
+    WidgetHelper.updateWidgetDuration(newDuration);
+
     if (_wheelController != null &&
         _wheelController!.hasClients &&
         _wheelController!.selectedItem != (newDuration - 1)) {
@@ -121,6 +158,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_isLoadingPrefs || _wheelController == null || _duration == null) {
       return const Scaffold(backgroundColor: AppConstants.backgroundColor);
     }
+
     return Scaffold(
       backgroundColor: AppConstants.backgroundColor,
       body: Stack(
@@ -130,13 +168,19 @@ class _HomeScreenState extends State<HomeScreen> {
               index: _currentIndex,
               children: [
                 _buildHomeContent(context),
-                // Only instantiate heavy sub-screens once the entry transition finishes
+                // Only load secondary panels when transition animations are completely clear
                 _transitionCompleted
-                    ? RepaintBoundary(child: StatsScreen(currentTab: _statsTabIndex))
-                    : const Scaffold(backgroundColor: AppConstants.backgroundColor),
+                    ? RepaintBoundary(
+                        child: StatsScreen(currentTab: _statsTabIndex),
+                      )
+                    : const Scaffold(
+                        backgroundColor: AppConstants.backgroundColor,
+                      ),
                 _transitionCompleted
                     ? const RepaintBoundary(child: SettingsScreen())
-                    : const Scaffold(backgroundColor: AppConstants.backgroundColor),
+                    : const Scaffold(
+                        backgroundColor: AppConstants.backgroundColor,
+                      ),
               ],
             ),
           ),
@@ -181,6 +225,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildStatsSubNavPill() {
     bool isExpanded = _currentIndex == 1 && !_isMainNavExpandedInStats;
+
     return GestureDetector(
       onTap: () {
         if (!isExpanded) setState(() => _isMainNavExpandedInStats = false);
@@ -257,6 +302,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildFloatingNavPill() {
     bool isExpanded = _currentIndex != 1 || _isMainNavExpandedInStats;
+
     return GestureDetector(
       onTap: () {
         if (!isExpanded) setState(() => _isMainNavExpandedInStats = true);
@@ -337,6 +383,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildHomeContent(BuildContext context) {
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
+
     return SafeArea(
       bottom: false,
       child: ValueListenableBuilder<int>(
@@ -425,10 +472,11 @@ class _HomeScreenState extends State<HomeScreen> {
           builder: (context, snapshot) {
             final user = snapshot.data;
             final isLoggedIn = user != null;
+
             return GestureDetector(
               onTap: () async {
                 if (isLoggedIn) {
-                   _showLogoutDialog(user);
+                  _showLogoutDialog(user);
                 } else {
                   final navigator = Navigator.of(context);
                   showDialog(
@@ -449,9 +497,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     }
                   } catch (e) {
                     if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Sync Error: $e')),
-                      );
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text('Sync Error: $e')));
                     }
                   } finally {
                     if (navigator.canPop()) navigator.pop();
@@ -610,7 +658,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: List.generate(isLandscape ? 9 : 13, (index) {
-                      int markerMinute = ((isLandscape ? 8 - index : 12 - index) * 15);
+                      int markerMinute =
+                          (isLandscape ? 8 - index : 12 - index) * 15;
                       bool isLong = markerMinute % 60 == 0;
                       bool isActive = markerMinute <= selectedMinutes;
                       return AnimatedContainer(
@@ -686,9 +735,13 @@ class _HomeScreenState extends State<HomeScreen> {
               Expanded(
                 child: Column(
                   children: [
-                    Expanded(child: _presetCard(60, "1\nHour", selectedMinutes)),
+                    Expanded(
+                      child: _presetCard(60, "1\nHour", selectedMinutes),
+                    ),
                     const SizedBox(height: 10),
-                    Expanded(child: _presetCard(120, "2\nHours", selectedMinutes)),
+                    Expanded(
+                      child: _presetCard(120, "2\nHours", selectedMinutes),
+                    ),
                   ],
                 ),
               ),
@@ -710,7 +763,9 @@ class _HomeScreenState extends State<HomeScreen> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
-          color: selectedMinutes == minutes ? _accentColor : AppConstants.cardColor,
+          color: selectedMinutes == minutes
+              ? _accentColor
+              : AppConstants.cardColor,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Center(
@@ -722,7 +777,9 @@ class _HomeScreenState extends State<HomeScreen> {
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.w700,
-                color: selectedMinutes == minutes ? AppConstants.textDark : AppConstants.textPrimary,
+                color: selectedMinutes == minutes
+                    ? AppConstants.textDark
+                    : AppConstants.textPrimary,
                 height: 1.1,
                 letterSpacing: -0.5,
               ),
@@ -759,6 +816,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     if (notifier.value != newDuration) {
                       notifier.value = newDuration;
                       LocalStorageService.saveLastSelectedDuration(newDuration);
+                      // Mirror selection state to the active home widget preferences file
+                      WidgetHelper.updateWidgetDuration(newDuration);
                     }
                   },
                   childDelegate: ListWheelChildBuilderDelegate(
@@ -769,7 +828,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           width: isAccentIndicator ? 28 : 16,
                           height: 3,
                           decoration: BoxDecoration(
-                            color: isAccentIndicator ? AppConstants.primaryAccent : Colors.white24,
+                            color: isAccentIndicator
+                                ? AppConstants.primaryAccent
+                                : Colors.white24,
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),
@@ -835,7 +896,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     _updateDuration(notifier.value + 1);
                   }
                 },
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(22),
+                ),
                 child: const SizedBox(
                   width: double.infinity,
                   height: 44,
@@ -855,7 +918,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     _updateDuration(notifier.value - 1);
                   }
                 },
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(22)),
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(22),
+                ),
                 child: const SizedBox(
                   width: double.infinity,
                   height: 44,
@@ -882,25 +947,34 @@ class _HomeScreenState extends State<HomeScreen> {
             if (!isLocking) {
               HapticFeedback.lightImpact();
               final sessionProvider = context.read<SessionProvider>();
-              final result = await sessionProvider.startSession(duration.value, context);
-              
+              final result = await sessionProvider.startSession(
+                duration.value,
+                context,
+              );
+
               if (result == SessionStartResult.accessibilityDenied) {
                 _showPermissionDialog();
                 return;
               }
+
               if (result == SessionStartResult.alreadyActive) {
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('A session is already active.')),
                 );
-                Navigator.of(context).push(AppRoutes.fadeSlide(const ActiveSessionScreen()));
+                Navigator.of(
+                  context,
+                ).push(AppRoutes.fadeSlide(const ActiveSessionScreen()));
                 return;
               }
+
               if (result == SessionStartResult.lockTaskFailed) {
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Could not start focus lock. Enable Device Admin in Settings and try again.'),
+                    content: Text(
+                      'Could not start focus lock. Enable Device Admin in Settings and try again.',
+                    ),
                   ),
                 );
                 return;

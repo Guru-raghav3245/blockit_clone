@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#151515"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="16dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="BLOCKIT TIMER"
+        android:textColor="#666666"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:letterSpacing="0.2" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="12dp">
+
+        <Button
+            android:id="@+id/btn_widget_minus"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:text="-"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#2A2A2A"
+            android:textStyle="bold"
+            android:textSize="18sp" />
+
+        <TextView
+            android:id="@+id/txt_widget_duration"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="45m"
+            android:textColor="#EED2C2"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:gravity="center" />
+
+        <Button
+            android:id="@+id/btn_widget_plus"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:text="+"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#2A2A2A"
+            android:textStyle="bold"
+            android:textSize="18sp" />
+
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/btn_widget_play"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:text="START FOCUS"
+        android:textColor="#000000"
+        android:backgroundTint="#EED2C2"
+        android:textStyle="bold" />
+
+</LinearLayout>
