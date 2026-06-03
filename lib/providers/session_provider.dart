@@ -21,12 +21,17 @@ class SessionProvider extends ChangeNotifier {
   bool _isLocking = false;
   int _currentSessionDuration = 0;
 
+  // New absolute time trackers to fix background clock throttling
+  DateTime? _sessionStartTime;
+  DateTime? _sessionEndTime;
+
   // Callback registered by ActiveSessionScreen to un-dim before session ends
   VoidCallback? onUndimRequested;
 
   int get remainingSeconds => _remainingSeconds;
   bool get isSessionActive => _isSessionActive;
   bool get isLocking => _isLocking;
+  DateTime? get sessionStartTime => _sessionStartTime; // Public getter for UI
 
   Future<SessionStartResult> startSession(
     int durationMinutes,
@@ -47,6 +52,10 @@ class SessionProvider extends ChangeNotifier {
     final success = await PlatformChannelHelper.startLockTask();
     if (success) {
       _currentSessionDuration = durationMinutes;
+      _sessionStartTime = DateTime.now();
+      _sessionEndTime = _sessionStartTime!.add(
+        Duration(minutes: durationMinutes),
+      );
       _remainingSeconds = durationMinutes * 60;
       _isSessionActive = true;
       _isLocking = false;
@@ -67,12 +76,17 @@ class SessionProvider extends ChangeNotifier {
 
   void _startTimer(BuildContext context) {
     _timer?.cancel();
+    // Run an evaluation step based on real-world system times
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_remainingSeconds > 0) {
-        _remainingSeconds--;
-        notifyListeners();
-      } else {
-        _endSession(context);
+      if (_isSessionActive && _sessionEndTime != null) {
+        final now = DateTime.now();
+        if (now.isBefore(_sessionEndTime!)) {
+          // Calculate exact real remaining time regardless of any background CPU lag
+          _remainingSeconds = _sessionEndTime!.difference(now).inSeconds;
+          notifyListeners();
+        } else {
+          _endSession(context);
+        }
       }
     });
   }
@@ -84,6 +98,11 @@ class SessionProvider extends ChangeNotifier {
     _isSessionActive = false;
     _remainingSeconds = 0;
     _currentSessionDuration = 0;
+    final savedStartTime =
+        _sessionStartTime ??
+        DateTime.now().subtract(Duration(minutes: actualDuration));
+    _sessionStartTime = null;
+    _sessionEndTime = null;
 
     // Un-dim the screen first before doing anything else
     onUndimRequested?.call();
@@ -92,7 +111,7 @@ class SessionProvider extends ChangeNotifier {
       FreedomSession(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         durationMinutes: actualDuration,
-        startTime: DateTime.now().subtract(Duration(minutes: actualDuration)),
+        startTime: savedStartTime,
         usedParachute: false,
       ),
     );
@@ -126,6 +145,11 @@ class SessionProvider extends ChangeNotifier {
     _isSessionActive = false;
     _remainingSeconds = 0;
     _currentSessionDuration = 0;
+    final savedStartTime =
+        _sessionStartTime ??
+        DateTime.now().subtract(Duration(minutes: actualDuration));
+    _sessionStartTime = null;
+    _sessionEndTime = null;
 
     // Un-dim before stopping
     onUndimRequested?.call();
@@ -134,7 +158,7 @@ class SessionProvider extends ChangeNotifier {
       FreedomSession(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         durationMinutes: actualDuration,
-        startTime: DateTime.now().subtract(Duration(minutes: actualDuration)),
+        startTime: savedStartTime,
         usedParachute: true,
       ),
     );

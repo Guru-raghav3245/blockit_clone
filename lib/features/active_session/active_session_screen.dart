@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../../providers/session_provider.dart';
 import '../../core/constants/app_constants.dart';
 
@@ -56,13 +57,19 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
   Widget build(BuildContext context) {
     final sessionProvider = context.watch<SessionProvider>();
     final remaining = sessionProvider.remainingSeconds;
-
     final hours = remaining ~/ 3600;
     final minutes = (remaining % 3600) ~/ 60;
     final seconds = remaining % 60;
-
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
+
+    // Format start time safely if available
+    String startTimeText = '--:--';
+    if (sessionProvider.sessionStartTime != null) {
+      startTimeText = DateFormat(
+        'hh:mm:ss a',
+      ).format(sessionProvider.sessionStartTime!);
+    }
 
     return Listener(
       onPointerDown: _onUserInteraction,
@@ -83,7 +90,6 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   SizedBox(height: isLandscape ? 10 : 30),
-
                   const Text(
                     'SESSION ACTIVE',
                     style: TextStyle(
@@ -103,9 +109,34 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
                       letterSpacing: 1.0,
                     ),
                   ),
+                  const SizedBox(height: 12),
+
+                  // Start Time Validation Display
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF151515),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: const Color(0xFF2A2A2A),
+                        width: 1,
+                      ),
+                    ),
+                    child: Text(
+                      'STARTED AT: $startTimeText',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppConstants.primaryAccent,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
 
                   const Spacer(),
-
                   // Responsive Timer Layout
                   if (isLandscape)
                     Row(
@@ -154,9 +185,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
                         ),
                       ],
                     ),
-
                   const Spacer(),
-
                   Padding(
                     padding: EdgeInsets.symmetric(
                       horizontal: 40,
@@ -232,7 +261,6 @@ class _HoldToEjectButtonState extends State<_HoldToEjectButton>
       vsync: this,
       duration: const Duration(seconds: 3),
     );
-
     _controller.addListener(() {
       setState(() {});
       if (_controller.isCompleted && !_isEjected) {
@@ -272,7 +300,6 @@ class _HoldToEjectButtonState extends State<_HoldToEjectButton>
         ),
         child: Stack(
           children: [
-            // Inside _HoldToEjectButtonState:
             FractionallySizedBox(
               alignment: Alignment.centerLeft,
               widthFactor: _controller.value,
