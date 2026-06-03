@@ -2,6 +2,7 @@ package com.example.blockit_clone
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
+import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Handler
 import android.os.Looper
@@ -12,6 +13,7 @@ import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import android.widget.Button
 
 class BlockitAccessibilityService : AccessibilityService() {
 
@@ -46,7 +48,6 @@ class BlockitAccessibilityService : AccessibilityService() {
         val packageName = event.packageName?.toString() ?: return
         if (packageName != "com.instagram.android") return
 
-        val className = event.className?.toString() ?: ""
         val root = rootInActiveWindow ?: return
 
         val now = System.currentTimeMillis()
@@ -54,7 +55,7 @@ class BlockitAccessibilityService : AccessibilityService() {
             return
         }
 
-        // 1. Check if explicit structural Reels elements are visible on screen
+        // 1. Check if the active viewport layout contains visible Reels layout indicators
         var hasVisibleClipsLayout = false
         val clipsLayoutNodes = root.findAccessibilityNodeInfosByViewId("com.instagram.android:id/root_clips_layout")
         if (!clipsLayoutNodes.isNullOrEmpty()) {
@@ -66,7 +67,7 @@ class BlockitAccessibilityService : AccessibilityService() {
             }
         }
 
-        // 2. Check if the Reels Tab button is actively selected AND visible to the user
+        // 2. Check if the dedicated bottom Reels tab is actively selected and visible to the user
         var isReelsTabSelected = false
         val clipsTabNodes = root.findAccessibilityNodeInfosByViewId("com.instagram.android:id/clips_tab")
         if (!clipsTabNodes.isNullOrEmpty()) {
@@ -78,7 +79,7 @@ class BlockitAccessibilityService : AccessibilityService() {
             }
         }
 
-        // 3. Fallback textual validation for the bottom navigation bar selection states
+        // 3. Fallback check for localized textual navigation triggers matching selection models
         var isReelsTextTabActive = false
         val reelsTextNodes = root.findAccessibilityNodeInfosByText("Reels")
         if (!reelsTextNodes.isNullOrEmpty()) {
@@ -90,29 +91,25 @@ class BlockitAccessibilityService : AccessibilityService() {
             }
         }
 
-        // Trigger restriction protocol if any active validation matches
+        // Trigger safe kickout if any visible Reels signature matches
         if (hasVisibleClipsLayout || isReelsTabSelected || isReelsTextTabActive) {
             lastKickoutTime = now
-            Log.d("Blockit", "Active Reels signature verified -> Redirecting to home feed")
+            Log.d("Blockit", "Active Reels signature verified -> Executing Home Tab redirection")
             
             showReelsBlockedOverlay()
 
-            // Attempt to click the Home tab container automatically
+            // Try programmatically clicking onto the Home feed button
             val redirectedSuccessfully = navigateToHomeTab(root)
             
-            // If the Home button is hidden or non-interactive (e.g. immersive player layer), use BACK fallback
+            // Fallback: If layout covers the navigation bar, execute a single back action to dismiss the layer
             if (!redirectedSuccessfully) {
-                Log.d("Blockit", "Home tab not clickable in viewport, executing layer dismissal fallback")
+                Log.d("Blockit", "Home tab not interactable, dropping immersive sheet via system back action")
                 performGlobalAction(GLOBAL_ACTION_BACK)
             }
         }
     }
 
-    /**
-     * Finds and click the Home feed tab view components programmatically
-     */
     private fun navigateToHomeTab(root: AccessibilityNodeInfo): Boolean {
-        // Try locating via common Instagram navigation view resource identifiers
         val homeViewIds = arrayOf(
             "com.instagram.android:id/feed_tab",
             "com.instagram.android:id/tab_home",
@@ -129,7 +126,6 @@ class BlockitAccessibilityService : AccessibilityService() {
             }
         }
 
-        // Fallback search via text localization strings
         val homeTextLabels = arrayOf("Home", "Feed")
         for (label in homeTextLabels) {
             val nodes = root.findAccessibilityNodeInfosByText(label)
@@ -144,9 +140,6 @@ class BlockitAccessibilityService : AccessibilityService() {
         return false
     }
 
-    /**
-     * Traverses upward through target view parent nodes to ensure a click event registers correctly
-     */
     private fun performClick(node: AccessibilityNodeInfo?): Boolean {
         var current = node
         while (current != null) {
@@ -165,18 +158,38 @@ class BlockitAccessibilityService : AccessibilityService() {
             val inflater = LayoutInflater.from(this)
             overlayView = inflater.inflate(R.layout.reels_blocked_overlay, null)
 
+            // Button 1 logic: Return to the blockit companion app workspace
+            val openAppButton = overlayView?.findViewById<Button>(R.id.btn_open_blockit)
+            openAppButton?.setOnClickListener {
+                Log.d("Blockit", "Overlay action button clicked -> Routing back to host application")
+                removeOverlay()
+
+                val launchIntent = packageManager.getLaunchIntentForPackage("com.example.blockit_clone")
+                if (launchIntent != null) {
+                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    startActivity(launchIntent)
+                }
+            }
+
+            // Button 2 logic: Close modal window layout exclusively 
+            val dismissButton = overlayView?.findViewById<Button>(R.id.btn_dismiss_overlay)
+            dismissButton?.setOnClickListener {
+                Log.d("Blockit", "Overlay dismiss button clicked -> Cleaning up layout overlay")
+                removeOverlay()
+            }
+
             val params = WindowManager.LayoutParams().apply {
                 type = WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
                 format = PixelFormat.TRANSLUCENT
-                flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                        WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
                 width = WindowManager.LayoutParams.MATCH_PARENT
                 height = WindowManager.LayoutParams.MATCH_PARENT
                 gravity = Gravity.CENTER
             }
 
             (getSystemService(WINDOW_SERVICE) as WindowManager).addView(overlayView, params)
-            handler.postDelayed({ removeOverlay() }, 1500)
+            // Note: handler.postDelayed timer removed completely as requested. Modal will persist until explicitly closed.
+
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -185,6 +198,8 @@ class BlockitAccessibilityService : AccessibilityService() {
     private fun removeOverlay() {
         try {
             overlayView?.let {
+                it.findViewById<Button>(R.id.btn_open_blockit)?.setOnClickListener(null)
+                it.findViewById<Button>(R.id.btn_dismiss_overlay)?.setOnClickListener(null)
                 (getSystemService(WINDOW_SERVICE) as WindowManager).removeView(it)
                 overlayView = null
             }
