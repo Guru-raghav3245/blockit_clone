@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../providers/session_provider.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/platform_channel_helper.dart';
 
 class ActiveSessionScreen extends StatefulWidget {
   const ActiveSessionScreen({super.key});
@@ -15,7 +16,10 @@ class ActiveSessionScreen extends StatefulWidget {
 
 class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
   Timer? _inactivityTimer;
+  Timer? _batteryPollTimer;
   bool _isDimmed = false;
+  int _batteryPercentage = -1;
+  bool _isCharging = false;
   late SessionProvider _sessionProvider;
 
   @override
@@ -23,6 +27,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
     super.initState();
     _sessionProvider = context.read<SessionProvider>();
     _resetInactivityTimer();
+    _startBatteryTracking();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _sessionProvider.onUndimRequested = _undim;
     });
@@ -31,6 +36,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
   @override
   void dispose() {
     _inactivityTimer?.cancel();
+    _batteryPollTimer?.cancel();
     _sessionProvider.onUndimRequested = null;
     super.dispose();
   }
@@ -47,6 +53,23 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
 
   void _dimScreen() {
     setState(() => _isDimmed = true);
+  }
+
+  void _startBatteryTracking() async {
+    _updateBatteryState();
+    _batteryPollTimer = Timer.periodic(const Duration(seconds: 20), (_) {
+      _updateBatteryState();
+    });
+  }
+
+  void _updateBatteryState() async {
+    final info = await PlatformChannelHelper.getBatteryInfo();
+    if (mounted) {
+      setState(() {
+        _batteryPercentage = info['level'] ?? -1;
+        _isCharging = info['isCharging'] ?? false;
+      });
+    }
   }
 
   void _onUserInteraction(PointerEvent event) {
@@ -71,6 +94,9 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
       ).format(sessionProvider.sessionStartTime!);
     }
 
+    final String liveWallTime = DateFormat('hh:mm a').format(DateTime.now());
+    final String batteryText = _batteryPercentage >= 0 ? '$_batteryPercentage%' : '--%';
+
     return Listener(
       onPointerDown: _onUserInteraction,
       onPointerMove: _onUserInteraction,
@@ -89,6 +115,53 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
+                  // Hardware Device Status Top Bar Widget Panel
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.access_time_filled_rounded, color: Color(0xFF444444), size: 14),
+                            const SizedBox(width: 6),
+                            Text(
+                              liveWallTime,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF666666),
+                                fontFeatures: [FontFeature.tabularFigures()],
+                              ),
+                            ),
+                          ],
+                        ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              batteryText,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF666666),
+                                fontFeatures: [FontFeature.tabularFigures()],
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            // FIXED: Changes dynamically based on charging logic
+                            Icon(
+                              _isCharging ? Icons.battery_charging_full_rounded : Icons.battery_std_rounded, 
+                              color: _isCharging ? AppConstants.primaryAccent : const Color(0xFF444444), 
+                              size: 14
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  
                   SizedBox(height: isLandscape ? 10 : 30),
                   const Text(
                     'SESSION ACTIVE',

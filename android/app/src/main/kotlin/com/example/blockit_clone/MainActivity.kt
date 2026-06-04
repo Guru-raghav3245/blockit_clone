@@ -7,6 +7,7 @@ import android.content.Intent
 import android.provider.Settings
 import android.app.admin.DevicePolicyManager
 import android.os.PowerManager
+import android.os.BatteryManager
 import android.view.accessibility.AccessibilityManager
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -68,6 +69,19 @@ class MainActivity : FlutterActivity() {
                     )
                     wakeLock.acquire(3000)
                     result.success(true)
+                }
+
+                // ================== FIXED: BATTERY LEVEL & STATUS RETRIEVAL ==================
+                "getBatteryInfo" -> {
+                    val bm = getSystemService(Context.BATTERY_SERVICE) as BatteryManager
+                    val percentage = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+                    val status = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_STATUS)
+                    val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
+                    
+                    result.success(mapOf(
+                        "level" to percentage,
+                        "isCharging" to isCharging
+                    ))
                 }
 
                 // ================== NEW: REELS BLOCKING ==================

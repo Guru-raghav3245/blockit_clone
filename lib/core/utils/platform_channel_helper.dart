@@ -63,6 +63,22 @@ class PlatformChannelHelper {
     } catch (e) {}
   }
 
+  // ================== FIXED: BATTERY INFO CHANNEL BRIDGE ==================
+  static Future<Map<String, dynamic>> getBatteryInfo() async {
+    try {
+      final Map? result = await _channel.invokeMethod<Map>('getBatteryInfo');
+      if (result != null) {
+        return {
+          'level': result['level'] as int? ?? -1,
+          'isCharging': result['isCharging'] as bool? ?? false,
+        };
+      }
+    } catch (e) {
+      print('Error getting battery info: $e');
+    }
+    return {'level': -1, 'isCharging': false};
+  }
+
   // ================== NEW: INSTAGRAM REELS BLOCKING ==================
 
   /// Enable or disable Instagram Reels blocking
