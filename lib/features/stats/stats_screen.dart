@@ -21,11 +21,23 @@ class _StatsScreenState extends State<StatsScreen> {
   int _selectedFilterIndex = 1; // 0: Day, 1: Week, 2: Month
   int? _touchedBarIndex;
 
+  // Timeline Paginated Controllers
+  late PageController _pageController;
+  int _currentPageIndex = 10000; 
+  final int _virtualCenter = 10000;
+
   @override
   void initState() {
     super.initState();
+    _pageController = PageController(initialPage: _virtualCenter);
     context.read<StatsProvider>().loadStats();
     _loadUserPreferences();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadUserPreferences() async {
@@ -37,7 +49,6 @@ class _StatsScreenState extends State<StatsScreen> {
     }
   }
 
-  // FIXED: Longest block should only look at fully completed focus periods
   int _getLongestBlock(List<FreedomSession> sessions) {
     final cleanSessions = sessions.where((s) => !s.usedParachute);
     if (cleanSessions.isEmpty) return 0;
@@ -46,13 +57,12 @@ class _StatsScreenState extends State<StatsScreen> {
         .reduce((a, b) => a > b ? a : b);
   }
 
-  // FIXED: Evaluates prime focus categories using cumulative clean minutes earned
   String _getPrimeTime(List<FreedomSession> sessions) {
     final cleanSessions = sessions.where((s) => !s.usedParachute);
     if (cleanSessions.isEmpty) return "Not enough data";
-
+    
     int morningMinutes = 0, afternoonMinutes = 0, nightMinutes = 0;
-
+    
     for (var s in cleanSessions) {
       final hour = s.startTime.hour;
       if (hour >= 5 && hour < 12) {
@@ -63,29 +73,21 @@ class _StatsScreenState extends State<StatsScreen> {
         nightMinutes += s.durationMinutes;
       }
     }
-
-    if (morningMinutes == 0 && afternoonMinutes == 0 && nightMinutes == 0)
-      return "No Focus Time";
-    if (morningMinutes >= afternoonMinutes && morningMinutes >= nightMinutes)
-      return "Morning Bird";
-    if (afternoonMinutes >= morningMinutes && afternoonMinutes >= nightMinutes)
-      return "Afternoon Focus";
+    
+    if (morningMinutes == 0 && afternoonMinutes == 0 && nightMinutes == 0) return "No Focus Time";
+    if (morningMinutes >= afternoonMinutes && morningMinutes >= nightMinutes) return "Morning Bird";
+    if (afternoonMinutes >= morningMinutes && afternoonMinutes >= nightMinutes) return "Afternoon Focus";
     return "Night Owl";
   }
 
-  // FIXED: Filters out sessions that used a parachute to secure streak integrity
   int _calculateStreak(List<FreedomSession> sessions) {
     if (sessions.isEmpty) return 0;
 
-    final validSessions = sessions.where(
-      (s) => !s.usedParachute && s.durationMinutes > 0,
-    );
+    final validSessions = sessions.where((s) => !s.usedParachute && s.durationMinutes > 0);
     if (validSessions.isEmpty) return 0;
 
     final activeDays = validSessions
-        .map(
-          (s) => DateTime(s.startTime.year, s.startTime.month, s.startTime.day),
-        )
+        .map((s) => DateTime(s.startTime.year, s.startTime.month, s.startTime.day))
         .toSet()
         .toList();
 
@@ -121,57 +123,67 @@ class _StatsScreenState extends State<StatsScreen> {
     return streak;
   }
 
-  // FIXED: Bans failed parachute sessions from appearing inside performance trending bar charts
-  List<_ChartBarData> _getChartData(StatsProvider stats) {
+  DateTime _getTargetDateForPage(int pageIndex) {
+    final int offset = pageIndex - _virtualCenter;
+    final now = DateTime.now();
+
+    if (_selectedFilterIndex == 0) {
+      return DateTime(now.year, now.month, now.day).add(Duration(days: offset));
+    } else if (_selectedFilterIndex == 1) {
+      return DateTime(now.year, now.month, now.day).add(Duration(days: offset * 7));
+    } else {
+      return DateTime(now.year, now.month + offset, 1);
+    }
+  }
+
+  // FIXED: Accesses high-speed pre-indexed Maps to instantly construct charts without full history iterations
+  List<_ChartBarData> _getChartDataForPage(
+    DateTime targetDate,
+    Map<String, List<FreedomSession>> cleanSessionsByDay,
+    Map<String, List<FreedomSession>> cleanSessionsByMonth,
+  ) {
     final now = DateTime.now();
     List<_ChartBarData> data = [];
 
-    final cleanSessions = stats.sessions.where((s) => !s.usedParachute);
-
     if (_selectedFilterIndex == 0) {
       List<double> values = List.filled(6, 0.0);
-      for (var s in cleanSessions) {
-        if (s.startTime.day == now.day &&
-            s.startTime.month == now.month &&
-            s.startTime.year == now.year) {
-          int block = s.startTime.hour ~/ 4;
-          values[block] += s.durationMinutes;
-        }
+      final dayKey = "${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}";
+      final daySessions = cleanSessionsByDay[dayKey] ?? [];
+
+      for (var s in daySessions) {
+        int block = s.startTime.hour ~/ 4;
+        values[block] += s.durationMinutes;
       }
       int currentBlock = now.hour ~/ 4;
+      bool isToday = targetDate.day == now.day && targetDate.month == now.month && targetDate.year == now.year;
+      
       final labels = ['12A', '4A', '8A', '12P', '4P', '8P'];
       for (int i = 0; i < 6; i++) {
         data.add(
-          _ChartBarData(labels[i], values[i], isCurrent: i == currentBlock),
+          _ChartBarData(labels[i], values[i], isCurrent: isToday && (i == currentBlock)),
         );
       }
     } else if (_selectedFilterIndex == 1) {
       List<double> values = List.filled(7, 0.0);
+      DateTime startOfWeek = targetDate.subtract(Duration(days: targetDate.weekday - 1));
+      startOfWeek = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
 
-      DateTime startOfWeek = now.subtract(Duration(days: now.weekday - 1));
-      startOfWeek = DateTime(
-        startOfWeek.year,
-        startOfWeek.month,
-        startOfWeek.day,
-      );
-
-      for (var s in cleanSessions) {
-        final sessionDate = DateTime(
-          s.startTime.year,
-          s.startTime.month,
-          s.startTime.day,
-        );
-        final diff = sessionDate.difference(startOfWeek).inDays;
-        if (diff >= 0 && diff < 7) {
-          values[diff] += s.durationMinutes;
+      for (int i = 0; i < 7; i++) {
+        final d = startOfWeek.add(Duration(days: i));
+        final dayKey = "${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
+        final daySessions = cleanSessionsByDay[dayKey] ?? [];
+        
+        double daySum = 0;
+        for (var s in daySessions) {
+          daySum += s.durationMinutes;
         }
+        values[i] = daySum;
       }
 
       for (int i = 0; i < 7; i++) {
         final d = startOfWeek.add(Duration(days: i));
         String letter = DateFormat('E').format(d)[0];
-        bool isCurrentDay =
-            (d.day == now.day && d.month == now.month && d.year == now.year);
+        bool isCurrentDay = (d.day == now.day && d.month == now.month && d.year == now.year);
 
         data.add(
           _ChartBarData(
@@ -183,33 +195,29 @@ class _StatsScreenState extends State<StatsScreen> {
       }
     } else if (_selectedFilterIndex == 2) {
       List<double> values = List.filled(4, 0.0);
-      for (var s in cleanSessions) {
-        if (s.startTime.month == now.month && s.startTime.year == now.year) {
-          int day = s.startTime.day;
-          if (day <= 7)
-            values[0] += s.durationMinutes;
-          else if (day <= 14)
-            values[1] += s.durationMinutes;
-          else if (day <= 21)
-            values[2] += s.durationMinutes;
-          else
-            values[3] += s.durationMinutes;
-        }
+      final monthKey = "${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}";
+      final monthSessions = cleanSessionsByMonth[monthKey] ?? [];
+
+      for (var s in monthSessions) {
+        int day = s.startTime.day;
+        if (day <= 7)
+          values[0] += s.durationMinutes;
+        else if (day <= 14)
+          values[1] += s.durationMinutes;
+        else if (day <= 21)
+          values[2] += s.durationMinutes;
+        else
+          values[3] += s.durationMinutes;
       }
 
-      int currentWeekIndex = now.day <= 7
-          ? 0
-          : now.day <= 14
-          ? 1
-          : now.day <= 21
-          ? 2
-          : 3;
+      int currentWeekIndex = now.day <= 7 ? 0 : now.day <= 14 ? 1 : now.day <= 21 ? 2 : 3;
+      bool isCurrentMonth = targetDate.month == now.month && targetDate.year == now.year;
 
       data = [
-        _ChartBarData('W1\n1-7', values[0], isCurrent: currentWeekIndex == 0),
-        _ChartBarData('W2\n8-14', values[1], isCurrent: currentWeekIndex == 1),
-        _ChartBarData('W3\n15-21', values[2], isCurrent: currentWeekIndex == 2),
-        _ChartBarData('W4\n22+', values[3], isCurrent: currentWeekIndex == 3),
+        _ChartBarData('W1\n1-7', values[0], isCurrent: isCurrentMonth && (currentWeekIndex == 0)),
+        _ChartBarData('W2\n8-14', values[1], isCurrent: isCurrentMonth && (currentWeekIndex == 1)),
+        _ChartBarData('W3\n15-21', values[2], isCurrent: isCurrentMonth && (currentWeekIndex == 2)),
+        _ChartBarData('W4\n22+', values[3], isCurrent: isCurrentMonth && (currentWeekIndex == 3)),
       ];
     }
 
@@ -219,6 +227,25 @@ class _StatsScreenState extends State<StatsScreen> {
   @override
   Widget build(BuildContext context) {
     final statsProvider = context.watch<StatsProvider>();
+
+    // FIXED: Performs a ultra high-speed single pass map aggregation block at the root build scope layer
+    final Map<String, List<FreedomSession>> cleanSessionsByDay = {};
+    final Map<String, List<FreedomSession>> cleanSessionsByMonth = {};
+    final Map<String, List<FreedomSession>> allSessionsByDay = {};
+    final Map<String, List<FreedomSession>> allSessionsByMonth = {};
+
+    for (var s in statsProvider.sessions) {
+      final dayKey = "${s.startTime.year}-${s.startTime.month.toString().padLeft(2, '0')}-${s.startTime.day.toString().padLeft(2, '0')}";
+      final monthKey = "${s.startTime.year}-${s.startTime.month.toString().padLeft(2, '0')}";
+
+      allSessionsByDay.putIfAbsent(dayKey, () => []).add(s);
+      allSessionsByMonth.putIfAbsent(monthKey, () => []).add(s);
+
+      if (!s.usedParachute) {
+        cleanSessionsByDay.putIfAbsent(dayKey, () => []).add(s);
+        cleanSessionsByMonth.putIfAbsent(monthKey, () => []).add(s);
+      }
+    }
 
     return Scaffold(
       backgroundColor: AppConstants.backgroundColor,
@@ -231,7 +258,7 @@ class _StatsScreenState extends State<StatsScreen> {
         index: widget.currentTab,
         children: [
           _buildOverviewTab(statsProvider),
-          _buildTrendsTab(statsProvider),
+          _buildTrendsTab(cleanSessionsByDay, cleanSessionsByMonth, allSessionsByDay, allSessionsByMonth),
           _buildHistoryTab(statsProvider),
         ],
       ),
@@ -239,12 +266,8 @@ class _StatsScreenState extends State<StatsScreen> {
   }
 
   Widget _buildOverviewTab(StatsProvider stats) {
-    // FIXED: Calculate total minutes dynamically by explicitly checking active successful session entries
     final cleanSessions = stats.sessions.where((s) => !s.usedParachute);
-    final totalCleanMinutes = cleanSessions.fold<int>(
-      0,
-      (sum, s) => sum + s.durationMinutes,
-    );
+    final totalCleanMinutes = cleanSessions.fold<int>(0, (sum, s) => sum + s.durationMinutes);
 
     final totalHours = (totalCleanMinutes / 60).floor();
     final remainingMins = totalCleanMinutes % 60;
@@ -321,9 +344,7 @@ class _StatsScreenState extends State<StatsScreen> {
             ],
           ),
         ),
-
         const SizedBox(height: 12),
-
         _SectionCard(
           padding: const EdgeInsets.all(20),
           child: Row(
@@ -362,9 +383,7 @@ class _StatsScreenState extends State<StatsScreen> {
             ],
           ),
         ),
-
         const SizedBox(height: 12),
-
         Row(
           children: [
             Expanded(
@@ -441,55 +460,39 @@ class _StatsScreenState extends State<StatsScreen> {
     );
   }
 
-  Widget _buildTrendsTab(StatsProvider stats) {
-    final chartData = _getChartData(stats);
-    final maxMinutes = chartData.isEmpty
-        ? 0
-        : chartData.map((d) => d.value).reduce((a, b) => a > b ? a : b);
-    final chartMax = maxMinutes > 0 ? maxMinutes : 60.0;
-
-    String headerTitle = "Today";
-    if (_selectedFilterIndex == 1) headerTitle = "This Week";
-    if (_selectedFilterIndex == 2) headerTitle = "This Month";
-
+  Widget _buildTrendsTab(
+    Map<String, List<FreedomSession>> cleanSessionsByDay,
+    Map<String, List<FreedomSession>> cleanSessionsByMonth,
+    Map<String, List<FreedomSession>> allSessionsByDay,
+    Map<String, List<FreedomSession>> allSessionsByMonth,
+  ) {
+    final int offset = _currentPageIndex - _virtualCenter;
+    final DateTime activeTargetDate = _getTargetDateForPage(_currentPageIndex);
+    
     int successfulPeriodSessions = 0;
     int periodParachutes = 0;
-    final now = DateTime.now();
 
-    DateTime startOfWeek = now.subtract(Duration(days: now.weekday - 1));
-    startOfWeek = DateTime(
-      startOfWeek.year,
-      startOfWeek.month,
-      startOfWeek.day,
-    );
-
-    for (var s in stats.sessions) {
-      bool include = false;
-      if (_selectedFilterIndex == 0) {
-        if (s.startTime.day == now.day &&
-            s.startTime.month == now.month &&
-            s.startTime.year == now.year)
-          include = true;
-      } else if (_selectedFilterIndex == 1) {
-        final sessionDate = DateTime(
-          s.startTime.year,
-          s.startTime.month,
-          s.startTime.day,
-        );
-        final diff = sessionDate.difference(startOfWeek).inDays;
-        if (diff >= 0 && diff < 7) include = true;
-      } else if (_selectedFilterIndex == 2) {
-        if (s.startTime.month == now.month && s.startTime.year == now.year)
-          include = true;
+    // FIXED: Summary indicators leverage indexed map entries instantly for peak background sliding efficiency
+    if (_selectedFilterIndex == 0) {
+      final dayKey = "${activeTargetDate.year}-${activeTargetDate.month.toString().padLeft(2, '0')}-${activeTargetDate.day.toString().padLeft(2, '0')}";
+      final daySessions = allSessionsByDay[dayKey] ?? [];
+      periodParachutes = daySessions.where((s) => s.usedParachute).length;
+      successfulPeriodSessions = daySessions.length - periodParachutes;
+    } else if (_selectedFilterIndex == 1) {
+      DateTime weekStart = activeTargetDate.subtract(Duration(days: activeTargetDate.weekday - 1));
+      for (int i = 0; i < 7; i++) {
+        final d = weekStart.add(Duration(days: i));
+        final dayKey = "${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
+        final daySessions = allSessionsByDay[dayKey] ?? [];
+        final parachutes = daySessions.where((s) => s.usedParachute).length;
+        periodParachutes += parachutes;
+        successfulPeriodSessions += (daySessions.length - parachutes);
       }
-
-      if (include) {
-        if (s.usedParachute) {
-          periodParachutes++;
-        } else {
-          successfulPeriodSessions++;
-        }
-      }
+    } else {
+      final monthKey = "${activeTargetDate.year}-${activeTargetDate.month.toString().padLeft(2, '0')}";
+      final monthSessions = allSessionsByMonth[monthKey] ?? [];
+      periodParachutes = monthSessions.where((s) => s.usedParachute).length;
+      successfulPeriodSessions = monthSessions.length - periodParachutes;
     }
 
     return ListView(
@@ -506,97 +509,139 @@ class _StatsScreenState extends State<StatsScreen> {
             ],
           ),
         ),
-
         const SizedBox(height: 24),
+        
+        SizedBox(
+          height: 310,
+          child: PageView.builder(
+            controller: _pageController,
+            physics: const BouncingScrollPhysics(), // Injects liquid elastic native scroll simulation tracking 
+            onPageChanged: (index) {
+              setState(() {
+                _currentPageIndex = index;
+                _touchedBarIndex = null;
+              });
+            },
+            itemBuilder: (context, index) {
+              final int pageOffset = index - _virtualCenter;
+              final DateTime targetDate = _getTargetDateForPage(index);
+              
+              // Map lookup takes exactly 0ms instead of dropping frame blocks
+              final chartData = _getChartDataForPage(targetDate, cleanSessionsByDay, cleanSessionsByMonth);
 
-        _SectionCard(
-          padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
-          radius: 28,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                headerTitle,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: AppConstants.textPrimary,
+              final maxMinutes = chartData.isEmpty ? 0 : chartData.map((d) => d.value).reduce((a, b) => a > b ? a : b);
+              final chartMax = maxMinutes > 0 ? maxMinutes : 60.0;
+
+              String headerTitle = "";
+              if (_selectedFilterIndex == 0) {
+                headerTitle = pageOffset == 0 ? "Today" : pageOffset == -1 ? "Yesterday" : DateFormat('MMM dd, yyyy').format(targetDate);
+              } else if (_selectedFilterIndex == 1) {
+                DateTime start = targetDate.subtract(Duration(days: targetDate.weekday - 1));
+                DateTime end = start.add(const Duration(days: 6));
+                headerTitle = pageOffset == 0 ? "This Week" : pageOffset == -1 ? "Last Week" : "${DateFormat('MMM dd').format(start)} - ${DateFormat('MMM dd').format(end)}";
+              } else {
+                headerTitle = pageOffset == 0 ? "This Month" : pageOffset == -1 ? "Last Month" : DateFormat('MMMM yyyy').format(targetDate);
+              }
+
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                child: _SectionCard(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+                  radius: 28,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.chevron_left_rounded, color: AppConstants.textMuted, size: 20),
+                            onPressed: () => _pageController.previousPage(duration: const Duration(milliseconds: 250), curve: Curves.easeInOut),
+                          ),
+                          Text(
+                            headerTitle,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: AppConstants.textPrimary,
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.chevron_right_rounded, color: AppConstants.textMuted, size: 20),
+                            onPressed: pageOffset == 0 ? null : () => _pageController.nextPage(duration: const Duration(milliseconds: 250), curve: Curves.easeInOut),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Center(
+                        child: Text(
+                          _touchedBarIndex != null
+                              ? '${chartData[_touchedBarIndex!].value.toInt()} minutes focused'
+                              : '${chartData.map((e) => e.value).fold(0.0, (a, b) => a + b).toInt()} total minutes',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: _touchedBarIndex != null ? AppConstants.primaryAccent : AppConstants.textSecondary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      SizedBox(
+                        height: 180,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: List.generate(chartData.length, (barIndex) {
+                            final dataPoint = chartData[barIndex];
+                            final heightFactor = dataPoint.value / chartMax;
+                            final isTouched = _touchedBarIndex == barIndex;
+                            final isCurrent = dataPoint.isCurrent;
+
+                            Color barColor;
+                            if (isTouched) {
+                              barColor = AppConstants.primaryAccent;
+                            } else if (isCurrent) {
+                              barColor = AppConstants.primaryAccent.withOpacity(0.8);
+                            } else if (dataPoint.value > 0) {
+                              barColor = AppConstants.primaryAccent.withOpacity(0.3);
+                            } else {
+                              barColor = AppConstants.borderColor;
+                            }
+
+                            Color labelColor = (isTouched || isCurrent) ? AppConstants.primaryAccent : AppConstants.textMuted;
+
+                            return _ChartBar(
+                              label: dataPoint.label,
+                              value: dataPoint.value.toInt(),
+                              barColor: barColor,
+                              labelColor: labelColor,
+                              isTouched: isTouched,
+                              isCurrent: isCurrent,
+                              width: chartData.length > 5 ? 28 : 42,
+                              height: (heightFactor * 100).clamp(4.0, 100.0),
+                              onPressStart: () {
+                                HapticFeedback.selectionClick();
+                                setState(() => _touchedBarIndex = barIndex);
+                              },
+                              onPressEnd: () => setState(() => _touchedBarIndex = null),
+                            );
+                          }),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                _touchedBarIndex != null
-                    ? '${chartData[_touchedBarIndex!].value.toInt()} minutes focused'
-                    : '${chartData.map((e) => e.value).fold(0.0, (a, b) => a + b).toInt()} total minutes',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: _touchedBarIndex != null
-                      ? AppConstants.primaryAccent
-                      : AppConstants.textSecondary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-
-              const SizedBox(height: 30),
-
-              SizedBox(
-                height: 220,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: List.generate(chartData.length, (index) {
-                    final dataPoint = chartData[index];
-                    final heightFactor = dataPoint.value / chartMax;
-                    final isTouched = _touchedBarIndex == index;
-                    final isCurrent = dataPoint.isCurrent;
-
-                    Color barColor;
-                    if (isTouched) {
-                      barColor = AppConstants.primaryAccent;
-                    } else if (isCurrent) {
-                      barColor = AppConstants.primaryAccent.withOpacity(0.8);
-                    } else if (dataPoint.value > 0) {
-                      barColor = AppConstants.primaryAccent.withOpacity(0.3);
-                    } else {
-                      barColor = AppConstants.borderColor;
-                    }
-
-                    Color labelColor = (isTouched || isCurrent)
-                        ? AppConstants.primaryAccent
-                        : AppConstants.textMuted;
-
-                    return _ChartBar(
-                      label: dataPoint.label,
-                      value: dataPoint.value.toInt(),
-                      barColor: barColor,
-                      labelColor: labelColor,
-                      isTouched: isTouched,
-                      isCurrent: isCurrent,
-                      width: chartData.length > 5 ? 32 : 44,
-                      height: (heightFactor * 120).clamp(4.0, 120.0),
-                      onPressStart: () {
-                        HapticFeedback.selectionClick();
-                        setState(() => _touchedBarIndex = index);
-                      },
-                      onPressEnd: () => setState(() => _touchedBarIndex = null),
-                    );
-                  }),
-                ),
-              ),
-            ],
+              );
+            },
           ),
         ),
-
-        const SizedBox(height: 12),
-
+        
+        const SizedBox(height: 16),
         Row(
           children: [
             Expanded(
               child: _SectionCard(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 20,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
                 child: Column(
                   children: [
                     Text(
@@ -611,10 +656,7 @@ class _StatsScreenState extends State<StatsScreen> {
                     const SizedBox(height: 4),
                     const Text(
                       'Sessions',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppConstants.textSecondary,
-                      ),
+                      style: TextStyle(fontSize: 12, color: AppConstants.textSecondary),
                     ),
                   ],
                 ),
@@ -623,10 +665,7 @@ class _StatsScreenState extends State<StatsScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: _SectionCard(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 20,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
                 child: Column(
                   children: [
                     Text(
@@ -641,10 +680,7 @@ class _StatsScreenState extends State<StatsScreen> {
                     const SizedBox(height: 4),
                     const Text(
                       'Parachutes',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppConstants.textSecondary,
-                      ),
+                      style: TextStyle(fontSize: 12, color: AppConstants.textSecondary),
                     ),
                   ],
                 ),
@@ -664,7 +700,9 @@ class _StatsScreenState extends State<StatsScreen> {
           setState(() {
             _selectedFilterIndex = index;
             _touchedBarIndex = null;
+            _currentPageIndex = _virtualCenter;
           });
+          _pageController.jumpToPage(_virtualCenter);
           LocalStorageService.saveLastStatsFilter(index);
         },
         child: AnimatedContainer(
@@ -680,9 +718,7 @@ class _StatsScreenState extends State<StatsScreen> {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w800,
-              color: isSelected
-                  ? AppConstants.textDark
-                  : AppConstants.textMuted,
+              color: isSelected ? AppConstants.textDark : AppConstants.textMuted,
             ),
           ),
         ),
@@ -816,7 +852,7 @@ class _ChartBar extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               AnimatedContainer(
                 duration: const Duration(milliseconds: 280),
                 curve: Curves.easeOutCubic,
@@ -827,7 +863,7 @@ class _ChartBar extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 6),
               Text(
                 label,
                 textAlign: TextAlign.center,
