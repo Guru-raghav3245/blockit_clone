@@ -37,6 +37,58 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadUserPreferences();
+    
+    // Listen to changes reactively to capture widget launches on both cold and warm starts
+    context.read<SessionProvider>().addListener(_onSessionProviderChanged);
+    
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _checkPendingWidgetLaunch();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    try {
+      context.read<SessionProvider>().removeListener(_onSessionProviderChanged);
+    } catch (_) {}
+    _wheelController?.dispose();
+    _duration?.dispose();
+    super.dispose();
+  }
+
+  void _onSessionProviderChanged() {
+    if (mounted) {
+      _checkPendingWidgetLaunch();
+    }
+  }
+
+  void _checkPendingWidgetLaunch() {
+    final sessionProvider = context.read<SessionProvider>();
+    final pendingDuration = sessionProvider.pendingWidgetDuration;
+    if (pendingDuration != null) {
+      // Clear inside a microtask block to separate notifications cleanly
+      Future.microtask(() {
+        sessionProvider.clearPendingWidgetDuration();
+      });
+      _startSessionFromWidget(pendingDuration);
+    }
+  }
+
+  void _startSessionFromWidget(int duration) async {
+    final sessionProvider = context.read<SessionProvider>();
+    final result = await sessionProvider.startSession(duration, context);
+    if (!mounted) return;
+    if (result == SessionStartResult.accessibilityDenied) {
+      _showPermissionDialog();
+    } else if (result == SessionStartResult.lockTaskFailed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not start focus lock. Enable Device Admin in Settings and try again.'),
+        ),
+      );
+    }
   }
 
   @override
@@ -61,9 +113,7 @@ class _HomeScreenState extends State<HomeScreen> {
           _transitionCompleted = true;
         });
       }
-      ModalRoute.of(
-        context,
-      )?.animation?.removeStatusListener(_handleAnimationStatus);
+      ModalRoute.of(context)?.animation?.removeStatusListener(_handleAnimationStatus);
     }
   }
 
@@ -80,13 +130,6 @@ class _HomeScreenState extends State<HomeScreen> {
       });
       WidgetHelper.updateWidgetDuration(savedDuration);
     }
-  }
-
-  @override
-  void dispose() {
-    _wheelController?.dispose();
-    _duration?.dispose();
-    super.dispose();
   }
 
   Color get _accentColor => AppConstants.primaryAccent;
@@ -188,6 +231,43 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
+
+          // FULL SCREEN INITIALIZATION OVERLAY
+          if (context.watch<SessionProvider>().isLocking)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withOpacity(0.88),
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const CircularProgressIndicator(
+                        color: AppConstants.primaryAccent,
+                        strokeWidth: 4,
+                      ),
+                      const SizedBox(height: 28),
+                      const Text(
+                        "Starting focus session...",
+                        style: TextStyle(
+                          color: AppConstants.textPrimary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        "Engaging native distraction shield",
+                        style: TextStyle(
+                          color: AppConstants.textMuted,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -351,8 +431,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHomeContent(BuildContext context) {
-    final isLandscape =
-        MediaQuery.of(context).orientation == Orientation.landscape;
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
 
     return SafeArea(
       bottom: false,
@@ -467,9 +546,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     }
                   } catch (e) {
                     if (mounted) {
-                      ScaffoldMessenger.of(
-                        context,
-                      ).showSnackBar(SnackBar(content: Text('Sync Error: $e')));
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Sync Error: $e')));
                     }
                   } finally {
                     if (navigator.canPop()) navigator.pop();
@@ -628,8 +705,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: List.generate(isLandscape ? 9 : 13, (index) {
-                      int markerMinute =
-                          (isLandscape ? 8 - index : 12 - index) * 15;
+                      int markerMinute = (isLandscape ? 8 - index : 12 - index) * 15;
                       bool isLong = markerMinute % 60 == 0;
                       bool isActive = markerMinute <= selectedMinutes;
                       return AnimatedContainer(
@@ -931,9 +1007,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('A session is already active.')),
                 );
-                Navigator.of(
-                  context,
-                ).push(AppRoutes.fadeSlide(const ActiveSessionScreen()));
+                Navigator.of(context).push(AppRoutes.fadeSlide(const ActiveSessionScreen()));
                 return;
               }
 

@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 
 class AppRoutes {
+  // FIXED: Provides a centralized global routing key safe from context lifecycle bugs
+  static final GlobalKey<NavigatorState> navigatorKey =
+      GlobalKey<NavigatorState>();
+
   static PageRoute<T> fadeSlide<T>(Widget page) {
     return PageRouteBuilder<T>(
       transitionDuration: const Duration(milliseconds: 280),
@@ -27,4 +31,3 @@ class AppRoutes {
     );
   }
 }
-

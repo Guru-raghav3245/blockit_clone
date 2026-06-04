@@ -5,10 +5,6 @@ import 'core/theme/app_theme.dart';
 import 'providers/session_provider.dart';
 import 'providers/stats_provider.dart';
 import 'features/splash/splash_screen.dart';
-import 'core/utils/platform_channel_helper.dart';
-
-// Global navigator key to safely execute automated route transitions from anywhere
-final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 class BlockitApp extends StatelessWidget {
   const BlockitApp({super.key});
@@ -22,11 +18,9 @@ class BlockitApp extends StatelessWidget {
       ],
       child: MaterialApp(
         title: 'blockit',
-        navigatorKey: navigatorKey,
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
         builder: (context, child) {
-          // Wrap navigation frame with a permanent widget click observer
           return WidgetLaunchObserver(child: child!);
         },
         home: const SplashScreen(),
@@ -35,8 +29,6 @@ class BlockitApp extends StatelessWidget {
   }
 }
 
-/// Persistent root layout observer that captures home screen widget actions
-/// across both cold and warm application lifecycles accurately.
 class WidgetLaunchObserver extends StatefulWidget {
   final Widget child;
   const WidgetLaunchObserver({super.key, required this.child});
@@ -50,96 +42,30 @@ class _WidgetLaunchObserverState extends State<WidgetLaunchObserver> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        final sessionProvider = context.read<SessionProvider>();
+      final sessionProvider = context.read<SessionProvider>();
 
-        // 1. Check launch parameters for completely terminated application processes (Cold Start)
-        HomeWidget.initiallyLaunchedFromHomeWidget().then((uri) {
-          if (uri != null) _handleWidgetUri(uri, sessionProvider);
-        });
+      // 1. Intercept cold start launches
+      HomeWidget.initiallyLaunchedFromHomeWidget().then((uri) {
+        if (uri != null) _handleWidgetUri(uri, sessionProvider);
+      });
 
-        // 2. Active event stream listener to process background application wakeups (Warm Start)
-        HomeWidget.widgetClicked.listen((uri) {
-          if (uri != null) _handleWidgetUri(uri, sessionProvider);
-        });
-      }
+      // 2. Intercept warm background updates
+      HomeWidget.widgetClicked.listen((uri) {
+        if (uri != null) _handleWidgetUri(uri, sessionProvider);
+      });
     });
   }
 
-  void _handleWidgetUri(Uri uri, SessionProvider sessionProvider) async {
+  void _handleWidgetUri(Uri uri, SessionProvider sessionProvider) {
     if (uri.host == 'start') {
       final duration =
           int.tryParse(uri.queryParameters['duration'] ?? '') ?? 15;
 
-      // Defer execution slightly to let running splash sequences and core animations settle
-      await Future.delayed(const Duration(milliseconds: 1800));
+      if (sessionProvider.isSessionActive) return;
 
-      if (!mounted) return;
-      final targetContext = navigatorKey.currentContext ?? context;
-
-      // Automatically instantiate focus lock sequence
-      final result = await sessionProvider.startSession(
-        duration,
-        targetContext,
-      );
-
-      // Handle structural permission failures or error contexts globally
-      if (result == SessionStartResult.accessibilityDenied) {
-        _showGlobalPermissionDialog(targetContext);
-      } else if (result == SessionStartResult.lockTaskFailed) {
-        ScaffoldMessenger.of(targetContext).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Could not start focus lock. Enable Device Admin in Settings and try again.',
-            ),
-          ),
-        );
-      }
+      // Always populate the pending state to let the active UI framework consume it reactively
+      sessionProvider.setPendingWidgetDuration(duration);
     }
-  }
-
-  void _showGlobalPermissionDialog(BuildContext ctx) {
-    showDialog(
-      context: ctx,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1B1A),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Text(
-          'Permission Required',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        content: const Text(
-          'To block distractions effectively, blockit needs Accessibility Service permission. Please enable "Blockit Accessibility" in the settings.',
-          style: TextStyle(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: Colors.white54),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFEED2C2),
-              foregroundColor: const Color(0xFF151211),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            onPressed: () {
-              Navigator.pop(context);
-              PlatformChannelHelper.openAccessibilitySettings();
-            },
-            child: const Text(
-              'Open Settings',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
