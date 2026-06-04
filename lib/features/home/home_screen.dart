@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:home_widget/home_widget.dart';
 import '../../providers/session_provider.dart';
 import '../../providers/stats_provider.dart';
 import '../../core/constants/app_constants.dart';
@@ -29,8 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   bool _isMainNavExpandedInStats = false;
   bool _isLoadingPrefs = true;
-  bool _transitionCompleted =
-      false; // Performance flag to optimize transition frame rates
+  bool _transitionCompleted = false;
 
   FixedExtentScrollController? _wheelController;
   final AuthService _authService = AuthService();
@@ -39,13 +37,11 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadUserPreferences();
-    _setupWidgetClickListener(); // Listen for home screen widget launcher taps
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Intercept transition route parameters to delay heavy index tree mounts
     final animation = ModalRoute.of(context)?.animation;
     if (animation != null) {
       if (animation.isCompleted) {
@@ -82,30 +78,7 @@ class _HomeScreenState extends State<HomeScreen> {
         );
         _isLoadingPrefs = false;
       });
-      // Initial background sync with widget shared memory preference cache
       WidgetHelper.updateWidgetDuration(savedDuration);
-    }
-  }
-
-  void _setupWidgetClickListener() {
-    // Process actions if app was entirely terminated in memory (Cold Start)
-    HomeWidget.initiallyLaunchedFromHomeWidget().then((uri) {
-      if (uri != null) _handleWidgetAction(uri);
-    });
-
-    // Process actions if app was already suspended in background stacks (Warm Start)
-    HomeWidget.widgetClicked.listen((uri) {
-      if (uri != null) _handleWidgetAction(uri);
-    });
-  }
-
-  void _handleWidgetAction(Uri uri) async {
-    if (uri.host == 'start') {
-      final savedDuration = await LocalStorageService.getLastSelectedDuration();
-      if (mounted) {
-        // Programmatically executes your session lock sequence instantly
-        context.read<SessionProvider>().startSession(savedDuration, context);
-      }
     }
   }
 
@@ -116,7 +89,6 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  // FORCE UNIFIED PEACH ACCENT
   Color get _accentColor => AppConstants.primaryAccent;
 
   String _difficultyLabelFor(int minutes) {
@@ -133,7 +105,6 @@ class _HomeScreenState extends State<HomeScreen> {
     notifier.value = newDuration;
     LocalStorageService.saveLastSelectedDuration(newDuration);
 
-    // Updates home screen widget selection presentation
     WidgetHelper.updateWidgetDuration(newDuration);
 
     if (_wheelController != null &&
@@ -168,7 +139,6 @@ class _HomeScreenState extends State<HomeScreen> {
               index: _currentIndex,
               children: [
                 _buildHomeContent(context),
-                // Only load secondary panels when transition animations are completely clear
                 _transitionCompleted
                     ? RepaintBoundary(
                         child: StatsScreen(currentTab: _statsTabIndex),
@@ -816,7 +786,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     if (notifier.value != newDuration) {
                       notifier.value = newDuration;
                       LocalStorageService.saveLastSelectedDuration(newDuration);
-                      // Mirror selection state to the active home widget preferences file
                       WidgetHelper.updateWidgetDuration(newDuration);
                     }
                   },
@@ -848,7 +817,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             gradient: LinearGradient(
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
-                              colors: [
+                              colors: const [
                                 AppConstants.backgroundColor,
                                 Colors.transparent,
                               ],
@@ -863,7 +832,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             gradient: LinearGradient(
                               begin: Alignment.bottomCenter,
                               end: Alignment.topCenter,
-                              colors: [
+                              colors: const [
                                 AppConstants.backgroundColor,
                                 Colors.transparent,
                               ],
