@@ -5,6 +5,10 @@ class PlatformChannelHelper {
     'com.blockit/device_admin',
   );
 
+  static const EventChannel _batteryStream = EventChannel(
+    'com.blockit/battery_stream',
+  );
+
   // ================== EXISTING METHODS ==================
 
   static Future<bool> startLockTask() async {
@@ -63,23 +67,18 @@ class PlatformChannelHelper {
     } catch (e) {}
   }
 
-  // ================== FIXED: BATTERY INFO CHANNEL BRIDGE ==================
-  static Future<Map<String, dynamic>> getBatteryInfo() async {
-    try {
-      final Map? result = await _channel.invokeMethod<Map>('getBatteryInfo');
-      if (result != null) {
-        return {
-          'level': result['level'] as int? ?? -1,
-          'isCharging': result['isCharging'] as bool? ?? false,
-        };
-      }
-    } catch (e) {
-      print('Error getting battery info: $e');
-    }
-    return {'level': -1, 'isCharging': false};
+  // ================== NEW: DYNAMIC BATTERY STREAM BRIDGE ==================
+  static Stream<Map<String, dynamic>> watchBatteryInfo() {
+    return _batteryStream.receiveBroadcastStream().map((event) {
+      final Map<dynamic, dynamic> map = event as Map<dynamic, dynamic>;
+      return {
+        'level': map['level'] as int? ?? -1,
+        'isCharging': map['isCharging'] as bool? ?? false,
+      };
+    });
   }
 
-  // ================== NEW: INSTAGRAM REELS BLOCKING ==================
+  // ================== EXISTING: INSTAGRAM REELS BLOCKING ==================
 
   /// Enable or disable Instagram Reels blocking
   static Future<void> enableReelsBlocking(bool enable) async {

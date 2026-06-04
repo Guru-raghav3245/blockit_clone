@@ -16,7 +16,7 @@ class ActiveSessionScreen extends StatefulWidget {
 
 class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
   Timer? _inactivityTimer;
-  Timer? _batteryPollTimer;
+  StreamSubscription<Map<String, dynamic>>? _batterySubscription;
   bool _isDimmed = false;
   int _batteryPercentage = -1;
   bool _isCharging = false;
@@ -27,7 +27,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
     super.initState();
     _sessionProvider = context.read<SessionProvider>();
     _resetInactivityTimer();
-    _startBatteryTracking();
+    _listenToBatteryChanges();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _sessionProvider.onUndimRequested = _undim;
     });
@@ -36,7 +36,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
   @override
   void dispose() {
     _inactivityTimer?.cancel();
-    _batteryPollTimer?.cancel();
+    _batterySubscription?.cancel();
     _sessionProvider.onUndimRequested = null;
     super.dispose();
   }
@@ -55,21 +55,16 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
     setState(() => _isDimmed = true);
   }
 
-  void _startBatteryTracking() async {
-    _updateBatteryState();
-    _batteryPollTimer = Timer.periodic(const Duration(seconds: 20), (_) {
-      _updateBatteryState();
+  // ================== FIXED: LISTEN TO BROADCASTS FOR INSTANT UPDATES ==================
+  void _listenToBatteryChanges() {
+    _batterySubscription = PlatformChannelHelper.watchBatteryInfo().listen((info) {
+      if (mounted) {
+        setState(() {
+          _batteryPercentage = info['level'] ?? -1;
+          _isCharging = info['isCharging'] ?? false;
+        });
+      }
     });
-  }
-
-  void _updateBatteryState() async {
-    final info = await PlatformChannelHelper.getBatteryInfo();
-    if (mounted) {
-      setState(() {
-        _batteryPercentage = info['level'] ?? -1;
-        _isCharging = info['isCharging'] ?? false;
-      });
-    }
   }
 
   void _onUserInteraction(PointerEvent event) {
@@ -150,7 +145,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
                               ),
                             ),
                             const SizedBox(width: 6),
-                            // FIXED: Changes dynamically based on charging logic
+                            // DYNAMICALLY TOGGLED AND TINTED CHARGING STATES
                             Icon(
                               _isCharging ? Icons.battery_charging_full_rounded : Icons.battery_std_rounded, 
                               color: _isCharging ? AppConstants.primaryAccent : const Color(0xFF444444), 
