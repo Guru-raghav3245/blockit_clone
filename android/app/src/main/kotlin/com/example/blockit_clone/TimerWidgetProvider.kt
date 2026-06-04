@@ -93,8 +93,14 @@ class TimerWidgetProvider : HomeWidgetProvider() {
             val minHeight = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT)
             val minWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH)
 
-            // FIXED: Responsive check altered to accommodate tight 3x2 constraints seamlessly
-            val showReelsControl = minHeight >= 105 || minWidth >= 170
+            // FIXED: Identify if the layout has been flattened to a single vertical row cell (2x1)
+            val isShortWidget = minHeight < 80
+
+            // Toggle top description padding text out of the view tree completely when cell heights collapse
+            views.setViewVisibility(R.id.txt_widget_header, if (isShortWidget) View.GONE else View.VISIBLE)
+
+            // Reveal control switch if stretched and extended beyond its base 2x2 grid cell boundaries
+            val showReelsControl = !isShortWidget && (minHeight >= 105 || minWidth >= 170)
             views.setViewVisibility(R.id.layout_widget_reels, if (showReelsControl) View.VISIBLE else View.GONE)
 
             val minutes = widgetData.getInt("widget_selected_duration", 15)

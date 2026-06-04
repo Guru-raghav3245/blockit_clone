@@ -7,11 +7,12 @@
     android:gravity="center"
     android:paddingStart="12dp"
     android:paddingEnd="12dp"
-    android:paddingTop="8dp"
-    android:paddingBottom="8dp">
+    android:paddingTop="6dp"
+    android:paddingBottom="6dp">
 
-    <!-- Header Token Row -->
+    <!-- Header Token Row - Added identifier for visibility toggling -->
     <TextView
+        android:id="@+id/txt_widget_header"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="BLOCKIT TIMER"
@@ -29,21 +30,21 @@
         android:gravity="center"
         android:layout_marginBottom="6dp">
 
-        <!-- Decrement Vector Panel - Fixed text alignment via gravity TextView conversion -->
+        <!-- Decrement Vector Panel -->
         <TextView
             android:id="@+id/btn_widget_minus"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
+            android:layout_width="34dp"
+            android:layout_height="34dp"
             android:text="-"
             android:textColor="#FFFFFF"
             android:background="#2A2A2A"
             android:textStyle="bold"
-            android:textSize="20sp"
+            android:textSize="18sp"
             android:gravity="center"
             android:focusable="true"
             android:clickable="true" />
 
-        <!-- Duration Node View - Fixed line wrap behavior via singleLine lock bounds -->
+        <!-- Duration Node View -->
         <TextView
             android:id="@+id/txt_widget_duration"
             android:layout_width="0dp"
@@ -51,22 +52,22 @@
             android:layout_weight="1"
             android:text="45m"
             android:textColor="#EED2C2"
-            android:textSize="24sp"
+            android:textSize="22sp"
             android:textStyle="bold"
             android:gravity="center"
             android:maxLines="1"
             android:ellipsize="none" />
 
-        <!-- Increment Vector Panel - Fixed text alignment via gravity TextView conversion -->
+        <!-- Increment Vector Panel -->
         <TextView
             android:id="@+id/btn_widget_plus"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
+            android:layout_width="34dp"
+            android:layout_height="34dp"
             android:text="+"
             android:textColor="#FFFFFF"
             android:background="#2A2A2A"
             android:textStyle="bold"
-            android:textSize="20sp"
+            android:textSize="18sp"
             android:gravity="center"
             android:focusable="true"
             android:clickable="true" />
@@ -77,17 +78,17 @@
     <Button
         android:id="@+id/btn_widget_play"
         android:layout_width="match_parent"
-        android:layout_height="38dp"
+        android:layout_height="36dp"
         android:text="START FOCUS"
         android:textColor="#000000"
         android:backgroundTint="#EED2C2"
-        android:textSize="12sp"
+        android:textSize="11sp"
         android:textStyle="bold"
         android:insetTop="0dp"
         android:insetBottom="0dp"
         android:padding="0dp" />
 
-    <!-- Compact Dynamic Reels Blocking Management Strip (Fixed vertical container layout blowout) -->
+    <!-- Compact Dynamic Reels Blocking Management Strip -->
     <LinearLayout
         android:id="@+id/layout_widget_reels"
         android:layout_width="match_parent"
@@ -111,7 +112,6 @@
             android:letterSpacing="0.05"
             android:maxLines="1" />
 
-        <!-- Compact Trigger node wrapper to protect container bounds spacing constraints safely -->
         <Button
             android:id="@+id/btn_widget_reels_toggle"
             android:layout_width="48dp"
