@@ -38,6 +38,7 @@
             </intent-filter>
         </activity>
 
+        <!-- Device Admin Receiver -->
         <receiver
             android:name=".DeviceAdminReceiver"
             android:permission="android.permission.BIND_DEVICE_ADMIN"
@@ -51,6 +52,7 @@
                 android:resource="@xml/device_admin_policies" />
         </receiver>
 
+        <!-- Accessibility Service -->
         <service
             android:name=".BlockitAccessibilityService"
             android:exported="false"
@@ -64,6 +66,7 @@
                 android:resource="@xml/accessibility_service_config" />
         </service>
 
+        <!-- Home Screen Timer Widget Receiver -->
         <receiver android:name=".TimerWidgetProvider" android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -71,6 +74,14 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/timer_widget_info" />
+        </receiver>
+
+        <!-- MANDATORY FIXED ADDITION: Captures background clicks (+/- button taps) from the widget provider -->
+        <receiver android:name="es.antonborri.home_widget.HomeWidgetBackgroundReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="es.antonborri.home_widget.action.BACKGROUND" />
+            </intent-filter>
         </receiver>
 
         <meta-data

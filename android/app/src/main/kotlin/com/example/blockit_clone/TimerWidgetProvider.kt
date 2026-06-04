@@ -1,22 +1,28 @@
 package com.example.blockit_clone
 
 import android.appwidget.AppWidgetManager
-import android.appwidget.AppWidgetProvider
 import android.content.Context
+import android.content.SharedPreferences
 import android.widget.RemoteViews
+import es.antonborri.home_widget.HomeWidgetProvider
 import es.antonborri.home_widget.HomeWidgetBackgroundIntent
 import es.antonborri.home_widget.HomeWidgetLaunchIntent
 import android.net.Uri
 
-class TimerWidgetProvider : AppWidgetProvider() {
+// Changed base inheritance class to HomeWidgetProvider
+class TimerWidgetProvider : HomeWidgetProvider() {
 
-    override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
+    override fun onUpdate(
+        context: Context, 
+        appWidgetManager: AppWidgetManager, 
+        appWidgetIds: IntArray, 
+        widgetData: SharedPreferences // Receives pre-configured storage container directly
+    ) {
         for (appWidgetId in appWidgetIds) {
             val views = RemoteViews(context.packageName, R.layout.timer_widget)
 
-            // Extract cached state variables written by SharedPreferences
-            val prefs = context.getSharedPreferences("HomeWidgetPreferences", Context.MODE_PRIVATE)
-            val minutes = prefs.getInt("widget_selected_duration", 15)
+            // Extract the selection state variable using the plugin data channel map directly
+            val minutes = widgetData.getInt("widget_selected_duration", 15)
             
             views.setTextViewText(R.id.txt_widget_duration, "${minutes}m")
 

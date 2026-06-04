@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:home_widget/home_widget.dart';
 import 'firebase_options.dart';
 import 'app.dart';
+import 'core/utils/widget_helper.dart';
 
 void main() async {
   // REQUIRED: Ensure Flutter engine is initialized before calling native code
@@ -11,6 +13,9 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // FIXED: Registers the interactivity callback handler for modern home_widget functionality
+  HomeWidget.registerInteractivityCallback(homeWidgetBackgroundCallback);
 
   runApp(const BlockitApp());
 }
