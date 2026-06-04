@@ -50,7 +50,6 @@ class StatsProvider extends ChangeNotifier {
 
     // 2. Get current local data
     final localSessions = await LocalStorageService.getAllSessions();
-    int currentParachutes = await LocalStorageService.getParachutesUsed();
 
     if (cloudData != null) {
       // 3a. User has cloud data. We must MERGE it with local data so nothing is lost.
@@ -83,11 +82,8 @@ class StatsProvider extends ChangeNotifier {
       );
       int newTotalSessions = mergedList.length;
 
-      // Parachutes (Take whichever is higher to be safe)
-      int cloudParachutes = cloudData['parachutesUsed'] ?? 0;
-      int newParachutes = currentParachutes > cloudParachutes
-          ? currentParachutes
-          : cloudParachutes;
+      // FIXED: Calculate real totals directly via list metrics rather than guessing with comparative constraints
+      int newParachutes = mergedList.where((s) => s.usedParachute).length;
 
       // Save the merged perfection back to local storage
       await LocalStorageService.overwriteAllData(

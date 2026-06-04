@@ -37,37 +37,55 @@ class _StatsScreenState extends State<StatsScreen> {
     }
   }
 
+  // FIXED: Longest block should only look at fully completed focus periods
   int _getLongestBlock(List<FreedomSession> sessions) {
-    if (sessions.isEmpty) return 0;
-    return sessions
+    final cleanSessions = sessions.where((s) => !s.usedParachute);
+    if (cleanSessions.isEmpty) return 0;
+    return cleanSessions
         .map((s) => s.durationMinutes)
         .reduce((a, b) => a > b ? a : b);
   }
 
+  // FIXED: Evaluates prime focus categories using cumulative clean minutes earned
   String _getPrimeTime(List<FreedomSession> sessions) {
-    if (sessions.isEmpty) return "Not enough data";
-    int morning = 0, afternoon = 0, night = 0;
-    for (var s in sessions) {
+    final cleanSessions = sessions.where((s) => !s.usedParachute);
+    if (cleanSessions.isEmpty) return "Not enough data";
+
+    int morningMinutes = 0, afternoonMinutes = 0, nightMinutes = 0;
+
+    for (var s in cleanSessions) {
       final hour = s.startTime.hour;
-      if (hour >= 5 && hour < 12)
-        morning++;
-      else if (hour >= 12 && hour < 18)
-        afternoon++;
-      else
-        night++;
+      if (hour >= 5 && hour < 12) {
+        morningMinutes += s.durationMinutes;
+      } else if (hour >= 12 && hour < 18) {
+        afternoonMinutes += s.durationMinutes;
+      } else {
+        nightMinutes += s.durationMinutes;
+      }
     }
-    if (morning >= afternoon && morning >= night) return "Morning Bird";
-    if (afternoon >= morning && afternoon >= night) return "Afternoon Focus";
+
+    if (morningMinutes == 0 && afternoonMinutes == 0 && nightMinutes == 0)
+      return "No Focus Time";
+    if (morningMinutes >= afternoonMinutes && morningMinutes >= nightMinutes)
+      return "Morning Bird";
+    if (afternoonMinutes >= morningMinutes && afternoonMinutes >= nightMinutes)
+      return "Afternoon Focus";
     return "Night Owl";
   }
 
+  // FIXED: Filters out sessions that used a parachute to secure streak integrity
   int _calculateStreak(List<FreedomSession> sessions) {
     if (sessions.isEmpty) return 0;
 
-    final activeDays = sessions
-        .map((s) {
-          return DateTime(s.startTime.year, s.startTime.month, s.startTime.day);
-        })
+    final validSessions = sessions.where(
+      (s) => !s.usedParachute && s.durationMinutes > 0,
+    );
+    if (validSessions.isEmpty) return 0;
+
+    final activeDays = validSessions
+        .map(
+          (s) => DateTime(s.startTime.year, s.startTime.month, s.startTime.day),
+        )
         .toSet()
         .toList();
 
@@ -103,13 +121,16 @@ class _StatsScreenState extends State<StatsScreen> {
     return streak;
   }
 
+  // FIXED: Bans failed parachute sessions from appearing inside performance trending bar charts
   List<_ChartBarData> _getChartData(StatsProvider stats) {
     final now = DateTime.now();
     List<_ChartBarData> data = [];
 
+    final cleanSessions = stats.sessions.where((s) => !s.usedParachute);
+
     if (_selectedFilterIndex == 0) {
       List<double> values = List.filled(6, 0.0);
-      for (var s in stats.sessions) {
+      for (var s in cleanSessions) {
         if (s.startTime.day == now.day &&
             s.startTime.month == now.month &&
             s.startTime.year == now.year) {
@@ -134,7 +155,7 @@ class _StatsScreenState extends State<StatsScreen> {
         startOfWeek.day,
       );
 
-      for (var s in stats.sessions) {
+      for (var s in cleanSessions) {
         final sessionDate = DateTime(
           s.startTime.year,
           s.startTime.month,
@@ -162,7 +183,7 @@ class _StatsScreenState extends State<StatsScreen> {
       }
     } else if (_selectedFilterIndex == 2) {
       List<double> values = List.filled(4, 0.0);
-      for (var s in stats.sessions) {
+      for (var s in cleanSessions) {
         if (s.startTime.month == now.month && s.startTime.year == now.year) {
           int day = s.startTime.day;
           if (day <= 7)
@@ -218,8 +239,16 @@ class _StatsScreenState extends State<StatsScreen> {
   }
 
   Widget _buildOverviewTab(StatsProvider stats) {
-    final totalHours = (stats.totalMinutes / 60).floor();
-    final remainingMins = stats.totalMinutes % 60;
+    // FIXED: Calculate total minutes dynamically by explicitly checking active successful session entries
+    final cleanSessions = stats.sessions.where((s) => !s.usedParachute);
+    final totalCleanMinutes = cleanSessions.fold<int>(
+      0,
+      (sum, s) => sum + s.durationMinutes,
+    );
+
+    final totalHours = (totalCleanMinutes / 60).floor();
+    final remainingMins = totalCleanMinutes % 60;
+
     final streak = _calculateStreak(stats.sessions);
     final longestBlock = _getLongestBlock(stats.sessions);
     final primeTime = _getPrimeTime(stats.sessions);
@@ -423,7 +452,7 @@ class _StatsScreenState extends State<StatsScreen> {
     if (_selectedFilterIndex == 1) headerTitle = "This Week";
     if (_selectedFilterIndex == 2) headerTitle = "This Month";
 
-    int periodSessions = 0;
+    int successfulPeriodSessions = 0;
     int periodParachutes = 0;
     final now = DateTime.now();
 
@@ -455,8 +484,11 @@ class _StatsScreenState extends State<StatsScreen> {
       }
 
       if (include) {
-        periodSessions++;
-        if (s.usedParachute) periodParachutes++;
+        if (s.usedParachute) {
+          periodParachutes++;
+        } else {
+          successfulPeriodSessions++;
+        }
       }
     }
 
@@ -568,7 +600,7 @@ class _StatsScreenState extends State<StatsScreen> {
                 child: Column(
                   children: [
                     Text(
-                      '$periodSessions',
+                      '$successfulPeriodSessions',
                       style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w800,
