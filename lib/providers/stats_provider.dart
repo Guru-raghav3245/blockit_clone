@@ -3,33 +3,35 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/local_storage_service.dart';
 import '../services/cloud_sync_service.dart';
 import '../models/freedom_session.dart';
+import '../models/reels_free_time_record.dart';
 
 class StatsProvider extends ChangeNotifier {
   int totalSessions = 0;
   int totalMinutes = 0;
-  List<FreedomSession> sessions = [];
   int parachutesUsed = 0;
+  List<FreedomSession> sessions = [];
+  
+  // High-performance dynamic storage container
+  List<ReelsFreeTimeRecord> reelsFreeRecords = [];
 
   Future<void> loadStats() async {
+    await LocalStorageService.syncNativeReelsFreeTimeBuffer();
+
     final stats = await LocalStorageService.getStats();
     totalSessions = stats['totalSessions']!;
     totalMinutes = stats['totalMinutes']!;
 
     sessions = await LocalStorageService.getAllSessions();
     parachutesUsed = await LocalStorageService.getParachutesUsed();
+    reelsFreeRecords = await LocalStorageService.getAllReelsFreeTimeRecords();
 
     notifyListeners();
   }
 
-  // Overridden to save locally, refresh memory, AND push to cloud if logged in.
   Future<void> addSession(FreedomSession session) async {
-    // 1. Save to device
     await LocalStorageService.saveSession(session);
-
-    // 2. Refresh RAM
     await loadStats();
 
-    // 3. Backup to Cloud
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       await CloudSyncService.pushToCloud(
@@ -38,86 +40,74 @@ class StatsProvider extends ChangeNotifier {
         totalMinutes,
         parachutesUsed,
         sessions,
+        reelsFreeRecords,
       );
     }
   }
 
-  // ─── CLOUD SYNC LOGIC ───────────────────────────────────────────────────
-
   Future<void> loginAndSync(String uid) async {
-    // 1. Pull the data from the cloud
+    await LocalStorageService.syncNativeReelsFreeTimeBuffer();
     final cloudData = await CloudSyncService.pullFromCloud(uid);
-
-    // 2. Get current local data
     final localSessions = await LocalStorageService.getAllSessions();
+    final localReelsRecords = await LocalStorageService.getAllReelsFreeTimeRecords();
+    int currentParachutes = await LocalStorageService.getParachutesUsed();
 
     if (cloudData != null) {
-      // 3a. User has cloud data. We must MERGE it with local data so nothing is lost.
+      // 1. Synchronize standard lock sessions
       final List<dynamic> cloudSessionsRaw = cloudData['sessionsList'] ?? [];
-      final cloudSessions = cloudSessionsRaw
-          .map((e) => FreedomSession.fromJson(e))
-          .toList();
+      final cloudSessions = cloudSessionsRaw.map((e) => FreedomSession.fromJson(e)).toList();
+      final Map<String, FreedomSession> mergedSessionsMap = {};
+      for (var s in cloudSessions) { mergedSessionsMap[s.id] = s; }
+      for (var s in localSessions) { mergedSessionsMap[s.id] = s; }
+      final mergedSessionsList = mergedSessionsMap.values.toList()
+        ..sort((a, b) => b.startTime.compareTo(a.startTime));
 
-      // Use a Map to prevent duplicate sessions (session ID is the key)
-      final Map<String, FreedomSession> mergedMap = {};
+      // 2. Synchronize dynamic Reels-free duration matrices cleanly
+      final List<dynamic> cloudReelsRaw = cloudData['reelsFreeTimeList'] ?? [];
+      final cloudReels = cloudReelsRaw.map((e) => ReelsFreeTimeRecord.fromJson(e)).toList();
+      final Map<String, ReelsFreeTimeRecord> mergedReelsMap = {};
+      for (var r in cloudReels) { mergedReelsMap[r.id] = r; }
+      for (var r in localReelsRecords) { mergedReelsMap[r.id] = r; }
+      final mergedReelsList = mergedReelsMap.values.toList()
+        ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
-      // Add all cloud sessions
-      for (var s in cloudSessions) {
-        mergedMap[s.id] = s;
-      }
-      // Add all local sessions (If there's a duplicate ID, local overwrites cloud)
-      for (var s in localSessions) {
-        mergedMap[s.id] = s;
-      }
+      int newTotalMinutes = mergedSessionsList.fold(0, (sum, s) => sum + s.durationMinutes);
+      int newTotalSessions = mergedSessionsList.length;
+      int cloudParachutes = cloudData['parachutesUsed'] ?? 0;
+      int newParachutes = currentParachutes > cloudParachutes ? currentParachutes : cloudParachutes;
 
-      final mergedList = mergedMap.values.toList();
-      mergedList.sort(
-        (a, b) => b.startTime.compareTo(a.startTime),
-      ); // Re-sort newest first
-
-      // Recalculate true totals based on the merged list
-      int newTotalMinutes = mergedList.fold(
-        0,
-        (sum, s) => sum + s.durationMinutes,
-      );
-      int newTotalSessions = mergedList.length;
-
-      // FIXED: Calculate real totals directly via list metrics rather than guessing with comparative constraints
-      int newParachutes = mergedList.where((s) => s.usedParachute).length;
-
-      // Save the merged perfection back to local storage
       await LocalStorageService.overwriteAllData(
         newTotalSessions,
         newTotalMinutes,
         newParachutes,
-        mergedList,
+        mergedSessionsList,
+        mergedReelsList,
       );
 
-      // Update provider memory
       totalSessions = newTotalSessions;
       totalMinutes = newTotalMinutes;
-      sessions = mergedList;
+      sessions = mergedSessionsList;
       parachutesUsed = newParachutes;
+      reelsFreeRecords = mergedReelsList;
 
-      // Push the unified merged data back to the cloud
       await CloudSyncService.pushToCloud(
         uid,
         totalSessions,
         totalMinutes,
         parachutesUsed,
         sessions,
+        reelsFreeRecords,
       );
     } else {
-      // 3b. First time logging in (No cloud data). Just push whatever is on the device up!
       await CloudSyncService.pushToCloud(
         uid,
         totalSessions,
         totalMinutes,
         parachutesUsed,
         localSessions,
+        localReelsRecords,
       );
     }
-
     notifyListeners();
   }
 
@@ -127,6 +117,7 @@ class StatsProvider extends ChangeNotifier {
     totalMinutes = 0;
     parachutesUsed = 0;
     sessions = [];
+    reelsFreeRecords = [];
     notifyListeners();
   }
 }

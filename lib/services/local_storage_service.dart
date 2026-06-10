@@ -1,13 +1,17 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/freedom_session.dart';
+import '../models/reels_free_time_record.dart';
 import '../core/constants/app_constants.dart';
 
 class LocalStorageService {
   static Future<SharedPreferences> get _prefs =>
       SharedPreferences.getInstance();
 
-  // Save a completed session
+  static const String keyReelsFreeTimeList = 'reels_free_time_list';
+
+  // ================== EXISTING SESSION METHODS ==================
+
   static Future<void> saveSession(FreedomSession session) async {
     final prefs = await _prefs;
     final String sessionsJson =
@@ -15,13 +19,11 @@ class LocalStorageService {
     final List<dynamic> sessionsList = jsonDecode(sessionsJson);
 
     sessionsList.add(session.toJson());
-
     await prefs.setString(
       AppConstants.keySessionsList,
       jsonEncode(sessionsList),
     );
 
-    // Update totals
     int totalSessions = prefs.getInt(AppConstants.keyTotalSessions) ?? 0;
     int totalMinutes = prefs.getInt(AppConstants.keyTotalMinutes) ?? 0;
 
@@ -32,7 +34,6 @@ class LocalStorageService {
     );
   }
 
-  // Get all sessions
   static Future<List<FreedomSession>> getAllSessions() async {
     final prefs = await _prefs;
     final String sessionsJson =
@@ -40,10 +41,9 @@ class LocalStorageService {
     final List<dynamic> list = jsonDecode(sessionsJson);
 
     return list.map((json) => FreedomSession.fromJson(json)).toList()
-      ..sort((a, b) => b.startTime.compareTo(a.startTime)); // newest first
+      ..sort((a, b) => b.startTime.compareTo(a.startTime));
   }
 
-  // Get stats
   static Future<Map<String, int>> getStats() async {
     final prefs = await _prefs;
     return {
@@ -52,7 +52,6 @@ class LocalStorageService {
     };
   }
 
-  // Parachute management
   static Future<int> getParachutesUsed() async {
     final prefs = await _prefs;
     return prefs.getInt(AppConstants.keyParachutesUsed) ?? 0;
@@ -64,12 +63,6 @@ class LocalStorageService {
     await prefs.setInt(AppConstants.keyParachutesUsed, used + 1);
   }
 
-  static Future<void> resetParachutes() async {
-    final prefs = await _prefs;
-    await prefs.setInt(AppConstants.keyParachutesUsed, 0);
-  }
-
-  // User Preferences Storage
   static Future<int> getLastSelectedDuration() async {
     final prefs = await _prefs;
     return prefs.getInt(AppConstants.keyLastSelectedDuration) ?? 15;
@@ -90,14 +83,61 @@ class LocalStorageService {
     await prefs.setInt(AppConstants.keyLastStatsFilter, filterIndex);
   }
 
-  // ─── NEW: SYNC OPERATIONS ─────────────────────────────────────────────
+  // ================== FIXED: REELS-FREE TIME METRIC CONTROLLER ==================
 
-  // Bulk overwrite local storage (used when pulling from cloud)
+  static Future<void> syncNativeReelsFreeTimeBuffer() async {
+    final prefs = await _prefs;
+    final String rawBufferJson =
+        prefs.getString('native_reels_free_time_buffer') ?? '[]';
+    if (rawBufferJson == '[]') return;
+
+    final List<dynamic> jsonList = jsonDecode(rawBufferJson);
+    if (jsonList.isEmpty) return;
+
+    final List<ReelsFreeTimeRecord> currentRecords =
+        await getAllReelsFreeTimeRecords();
+
+    for (var item in jsonList) {
+      if (item is Map) {
+        final int mins = item['durationMinutes'] ?? 0;
+        final int ms = item['timestamp'] ?? 0;
+
+        if (mins > 0 && ms > 0) {
+          currentRecords.add(
+            ReelsFreeTimeRecord(
+              id: 'free_${ms}_${currentRecords.length}',
+              durationMinutes: mins,
+              timestamp: DateTime.fromMillisecondsSinceEpoch(ms),
+            ),
+          );
+        }
+      }
+    }
+
+    await prefs.setString(
+      keyReelsFreeTimeList,
+      jsonEncode(currentRecords.map((r) => r.toJson()).toList()),
+    );
+    await prefs.setString(
+      'native_reels_free_time_buffer',
+      '[]',
+    ); // Wipe background buffer cache securely
+  }
+
+  static Future<List<ReelsFreeTimeRecord>> getAllReelsFreeTimeRecords() async {
+    final prefs = await _prefs;
+    final String recordsJson = prefs.getString(keyReelsFreeTimeList) ?? '[]';
+    final List<dynamic> list = jsonDecode(recordsJson);
+    return list.map((json) => ReelsFreeTimeRecord.fromJson(json)).toList()
+      ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+  }
+
   static Future<void> overwriteAllData(
     int tSessions,
     int tMinutes,
     int parachutes,
     List<FreedomSession> sList,
+    List<ReelsFreeTimeRecord> rList,
   ) async {
     final prefs = await _prefs;
     await prefs.setInt(AppConstants.keyTotalSessions, tSessions);
@@ -107,14 +147,18 @@ class LocalStorageService {
       AppConstants.keySessionsList,
       jsonEncode(sList.map((s) => s.toJson()).toList()),
     );
+    await prefs.setString(
+      keyReelsFreeTimeList,
+      jsonEncode(rList.map((r) => r.toJson()).toList()),
+    );
   }
 
-  // Wipe user data from device on logout (leaves duration/filter preferences intact)
   static Future<void> clearAllStats() async {
     final prefs = await _prefs;
     await prefs.remove(AppConstants.keyTotalSessions);
     await prefs.remove(AppConstants.keyTotalMinutes);
     await prefs.remove(AppConstants.keyParachutesUsed);
     await prefs.remove(AppConstants.keySessionsList);
+    await prefs.remove(keyReelsFreeTimeList);
   }
 }

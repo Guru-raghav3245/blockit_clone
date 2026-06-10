@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../core/constants/app_constants.dart';
 import '../../providers/stats_provider.dart';
 import '../../models/freedom_session.dart';
+import '../../models/reels_free_time_record.dart';
 import '../../services/local_storage_service.dart';
 import 'widgets/session_list.dart';
 
@@ -19,11 +20,12 @@ class StatsScreen extends StatefulWidget {
 
 class _StatsScreenState extends State<StatsScreen> {
   int _selectedFilterIndex = 1; // 0: Day, 1: Week, 2: Month
+  int _activeMetricIndex =
+      0; // 0: Full Focus Lock Time, 1: Clean Reels-Free Time
   int? _touchedBarIndex;
 
-  // Timeline Paginated Controllers
   late PageController _pageController;
-  int _currentPageIndex = 10000; 
+  int _currentPageIndex = 10000;
   final int _virtualCenter = 10000;
 
   @override
@@ -60,37 +62,39 @@ class _StatsScreenState extends State<StatsScreen> {
   String _getPrimeTime(List<FreedomSession> sessions) {
     final cleanSessions = sessions.where((s) => !s.usedParachute);
     if (cleanSessions.isEmpty) return "Not enough data";
-    
+
     int morningMinutes = 0, afternoonMinutes = 0, nightMinutes = 0;
-    
     for (var s in cleanSessions) {
       final hour = s.startTime.hour;
-      if (hour >= 5 && hour < 12) {
+      if (hour >= 5 && hour < 12)
         morningMinutes += s.durationMinutes;
-      } else if (hour >= 12 && hour < 18) {
+      else if (hour >= 12 && hour < 18)
         afternoonMinutes += s.durationMinutes;
-      } else {
+      else
         nightMinutes += s.durationMinutes;
-      }
     }
-    
-    if (morningMinutes == 0 && afternoonMinutes == 0 && nightMinutes == 0) return "No Focus Time";
-    if (morningMinutes >= afternoonMinutes && morningMinutes >= nightMinutes) return "Morning Bird";
-    if (afternoonMinutes >= morningMinutes && afternoonMinutes >= nightMinutes) return "Afternoon Focus";
+    if (morningMinutes == 0 && afternoonMinutes == 0 && nightMinutes == 0)
+      return "No Focus Time";
+    if (morningMinutes >= afternoonMinutes && morningMinutes >= nightMinutes)
+      return "Morning Bird";
+    if (afternoonMinutes >= morningMinutes && afternoonMinutes >= nightMinutes)
+      return "Afternoon Focus";
     return "Night Owl";
   }
 
   int _calculateStreak(List<FreedomSession> sessions) {
     if (sessions.isEmpty) return 0;
-
-    final validSessions = sessions.where((s) => !s.usedParachute && s.durationMinutes > 0);
+    final validSessions = sessions.where(
+      (s) => !s.usedParachute && s.durationMinutes > 0,
+    );
     if (validSessions.isEmpty) return 0;
 
     final activeDays = validSessions
-        .map((s) => DateTime(s.startTime.year, s.startTime.month, s.startTime.day))
+        .map(
+          (s) => DateTime(s.startTime.year, s.startTime.month, s.startTime.day),
+        )
         .toSet()
         .toList();
-
     activeDays.sort((a, b) => b.compareTo(a));
 
     int streak = 0;
@@ -102,15 +106,11 @@ class _StatsScreenState extends State<StatsScreen> {
     DateTime currentDate = today;
 
     if (!activeDays.contains(today) &&
-        !activeDays.contains(today.subtract(const Duration(days: 1)))) {
+        !activeDays.contains(today.subtract(const Duration(days: 1))))
       return 0;
-    }
-
-    if (activeDays.contains(today)) {
-      currentDate = today;
-    } else {
-      currentDate = today.subtract(const Duration(days: 1));
-    }
+    currentDate = activeDays.contains(today)
+        ? today
+        : today.subtract(const Duration(days: 1));
 
     for (var day in activeDays) {
       if (day.isAtSameMomentAs(currentDate)) {
@@ -126,101 +126,166 @@ class _StatsScreenState extends State<StatsScreen> {
   DateTime _getTargetDateForPage(int pageIndex) {
     final int offset = pageIndex - _virtualCenter;
     final now = DateTime.now();
-
-    if (_selectedFilterIndex == 0) {
+    if (_selectedFilterIndex == 0)
       return DateTime(now.year, now.month, now.day).add(Duration(days: offset));
-    } else if (_selectedFilterIndex == 1) {
-      return DateTime(now.year, now.month, now.day).add(Duration(days: offset * 7));
-    } else {
-      return DateTime(now.year, now.month + offset, 1);
-    }
+    if (_selectedFilterIndex == 1)
+      return DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ).add(Duration(days: offset * 7));
+    return DateTime(now.year, now.month + offset, 1);
   }
 
-  // FIXED: Accesses high-speed pre-indexed Maps to instantly construct charts without full history iterations
   List<_ChartBarData> _getChartDataForPage(
     DateTime targetDate,
     Map<String, List<FreedomSession>> cleanSessionsByDay,
     Map<String, List<FreedomSession>> cleanSessionsByMonth,
+    Map<String, List<ReelsFreeTimeRecord>> reelsFreeByDay,
+    Map<String, List<ReelsFreeTimeRecord>> reelsFreeByMonth,
   ) {
     final now = DateTime.now();
     List<_ChartBarData> data = [];
 
     if (_selectedFilterIndex == 0) {
       List<double> values = List.filled(6, 0.0);
-      final dayKey = "${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}";
-      final daySessions = cleanSessionsByDay[dayKey] ?? [];
+      final dayKey =
+          "${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}";
 
-      for (var s in daySessions) {
-        int block = s.startTime.hour ~/ 4;
-        values[block] += s.durationMinutes;
+      if (_activeMetricIndex == 0) {
+        final daySessions = cleanSessionsByDay[dayKey] ?? [];
+        for (var s in daySessions) {
+          values[s.startTime.hour ~/ 4] += s.durationMinutes;
+        }
+      } else {
+        final dayRecords = reelsFreeByDay[dayKey] ?? [];
+        for (var r in dayRecords) {
+          values[r.timestamp.hour ~/ 4] += r.durationMinutes;
+        }
       }
+
       int currentBlock = now.hour ~/ 4;
-      bool isToday = targetDate.day == now.day && targetDate.month == now.month && targetDate.year == now.year;
-      
+      bool isToday =
+          targetDate.day == now.day &&
+          targetDate.month == now.month &&
+          targetDate.year == now.year;
       final labels = ['12A', '4A', '8A', '12P', '4P', '8P'];
       for (int i = 0; i < 6; i++) {
         data.add(
-          _ChartBarData(labels[i], values[i], isCurrent: isToday && (i == currentBlock)),
+          _ChartBarData(
+            labels[i],
+            values[i],
+            isCurrent: isToday && (i == currentBlock),
+          ),
         );
       }
     } else if (_selectedFilterIndex == 1) {
       List<double> values = List.filled(7, 0.0);
-      DateTime startOfWeek = targetDate.subtract(Duration(days: targetDate.weekday - 1));
-      startOfWeek = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
+      DateTime startOfWeek = targetDate.subtract(
+        Duration(days: targetDate.weekday - 1),
+      );
+      startOfWeek = DateTime(
+        startOfWeek.year,
+        startOfWeek.month,
+        startOfWeek.day,
+      );
 
       for (int i = 0; i < 7; i++) {
         final d = startOfWeek.add(Duration(days: i));
-        final dayKey = "${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
-        final daySessions = cleanSessionsByDay[dayKey] ?? [];
-        
-        double daySum = 0;
-        for (var s in daySessions) {
-          daySum += s.durationMinutes;
+        final dayKey =
+            "${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
+
+        if (_activeMetricIndex == 0) {
+          final daySessions = cleanSessionsByDay[dayKey] ?? [];
+          for (var s in daySessions) {
+            values[i] += s.durationMinutes;
+          }
+        } else {
+          final dayRecords = reelsFreeByDay[dayKey] ?? [];
+          for (var r in dayRecords) {
+            values[i] += r.durationMinutes;
+          }
         }
-        values[i] = daySum;
       }
 
       for (int i = 0; i < 7; i++) {
         final d = startOfWeek.add(Duration(days: i));
-        String letter = DateFormat('E').format(d)[0];
-        bool isCurrentDay = (d.day == now.day && d.month == now.month && d.year == now.year);
-
+        bool isCurrentDay =
+            (d.day == now.day && d.month == now.month && d.year == now.year);
         data.add(
           _ChartBarData(
-            "$letter\n${d.day}",
+            "${DateFormat('E').format(d)[0]}\n${d.day}",
             values[i],
             isCurrent: isCurrentDay,
           ),
         );
       }
-    } else if (_selectedFilterIndex == 2) {
+    } else {
       List<double> values = List.filled(4, 0.0);
-      final monthKey = "${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}";
-      final monthSessions = cleanSessionsByMonth[monthKey] ?? [];
+      final monthKey =
+          "${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}";
 
-      for (var s in monthSessions) {
-        int day = s.startTime.day;
-        if (day <= 7)
-          values[0] += s.durationMinutes;
-        else if (day <= 14)
-          values[1] += s.durationMinutes;
-        else if (day <= 21)
-          values[2] += s.durationMinutes;
-        else
-          values[3] += s.durationMinutes;
+      if (_activeMetricIndex == 0) {
+        final monthSessions = cleanSessionsByMonth[monthKey] ?? [];
+        for (var s in monthSessions) {
+          int day = s.startTime.day;
+          int wIdx = day <= 7
+              ? 0
+              : day <= 14
+              ? 1
+              : day <= 21
+              ? 2
+              : 3;
+          values[wIdx] += s.durationMinutes;
+        }
+      } else {
+        final monthRecords = reelsFreeByMonth[monthKey] ?? [];
+        for (var r in monthRecords) {
+          int day = r.timestamp.day;
+          int wIdx = day <= 7
+              ? 0
+              : day <= 14
+              ? 1
+              : day <= 21
+              ? 2
+              : 3;
+          values[wIdx] += r.durationMinutes;
+        }
       }
 
-      int currentWeekIndex = now.day <= 7 ? 0 : now.day <= 14 ? 1 : now.day <= 21 ? 2 : 3;
-      bool isCurrentMonth = targetDate.month == now.month && targetDate.year == now.year;
+      int currentWeekIndex = now.day <= 7
+          ? 0
+          : now.day <= 14
+          ? 1
+          : now.day <= 21
+          ? 2
+          : 3;
+      bool isCurrentMonth =
+          targetDate.month == now.month && targetDate.year == now.year;
 
       data = [
-        _ChartBarData('W1\n1-7', values[0], isCurrent: isCurrentMonth && (currentWeekIndex == 0)),
-        _ChartBarData('W2\n8-14', values[1], isCurrent: isCurrentMonth && (currentWeekIndex == 1)),
-        _ChartBarData('W3\n15-21', values[2], isCurrent: isCurrentMonth && (currentWeekIndex == 2)),
-        _ChartBarData('W4\n22+', values[3], isCurrent: isCurrentMonth && (currentWeekIndex == 3)),
+        _ChartBarData(
+          'W1\n1-7',
+          values[0],
+          isCurrent: isCurrentMonth && (currentWeekIndex == 0),
+        ),
+        _ChartBarData(
+          'W2\n8-14',
+          values[1],
+          isCurrent: isCurrentMonth && (currentWeekIndex == 1),
+        ),
+        _ChartBarData(
+          'W3\n15-21',
+          values[2],
+          isCurrent: isCurrentMonth && (currentWeekIndex == 2),
+        ),
+        _ChartBarData(
+          'W4\n22+',
+          values[3],
+          isCurrent: isCurrentMonth && (currentWeekIndex == 3),
+        ),
       ];
     }
-
     return data;
   }
 
@@ -228,23 +293,28 @@ class _StatsScreenState extends State<StatsScreen> {
   Widget build(BuildContext context) {
     final statsProvider = context.watch<StatsProvider>();
 
-    // FIXED: Performs a ultra high-speed single pass map aggregation block at the root build scope layer
     final Map<String, List<FreedomSession>> cleanSessionsByDay = {};
     final Map<String, List<FreedomSession>> cleanSessionsByMonth = {};
-    final Map<String, List<FreedomSession>> allSessionsByDay = {};
-    final Map<String, List<FreedomSession>> allSessionsByMonth = {};
-
     for (var s in statsProvider.sessions) {
-      final dayKey = "${s.startTime.year}-${s.startTime.month.toString().padLeft(2, '0')}-${s.startTime.day.toString().padLeft(2, '0')}";
-      final monthKey = "${s.startTime.year}-${s.startTime.month.toString().padLeft(2, '0')}";
-
-      allSessionsByDay.putIfAbsent(dayKey, () => []).add(s);
-      allSessionsByMonth.putIfAbsent(monthKey, () => []).add(s);
-
       if (!s.usedParachute) {
-        cleanSessionsByDay.putIfAbsent(dayKey, () => []).add(s);
-        cleanSessionsByMonth.putIfAbsent(monthKey, () => []).add(s);
+        final dKey =
+            "${s.startTime.year}-${s.startTime.month.toString().padLeft(2, '0')}-${s.startTime.day.toString().padLeft(2, '0')}";
+        final mKey =
+            "${s.startTime.year}-${s.startTime.month.toString().padLeft(2, '0')}";
+        cleanSessionsByDay.putIfAbsent(dKey, () => []).add(s);
+        cleanSessionsByMonth.putIfAbsent(mKey, () => []).add(s);
       }
+    }
+
+    final Map<String, List<ReelsFreeTimeRecord>> reelsFreeByDay = {};
+    final Map<String, List<ReelsFreeTimeRecord>> reelsFreeByMonth = {};
+    for (var r in statsProvider.reelsFreeRecords) {
+      final dKey =
+          "${r.timestamp.year}-${r.timestamp.month.toString().padLeft(2, '0')}-${r.timestamp.day.toString().padLeft(2, '0')}";
+      final mKey =
+          "${r.timestamp.year}-${r.timestamp.month.toString().padLeft(2, '0')}";
+      reelsFreeByDay.putIfAbsent(dKey, () => []).add(r);
+      reelsFreeByMonth.putIfAbsent(mKey, () => []).add(r);
     }
 
     return Scaffold(
@@ -258,7 +328,12 @@ class _StatsScreenState extends State<StatsScreen> {
         index: widget.currentTab,
         children: [
           _buildOverviewTab(statsProvider),
-          _buildTrendsTab(cleanSessionsByDay, cleanSessionsByMonth, allSessionsByDay, allSessionsByMonth),
+          _buildTrendsTab(
+            cleanSessionsByDay,
+            cleanSessionsByMonth,
+            reelsFreeByDay,
+            reelsFreeByMonth,
+          ),
           _buildHistoryTab(statsProvider),
         ],
       ),
@@ -267,14 +342,19 @@ class _StatsScreenState extends State<StatsScreen> {
 
   Widget _buildOverviewTab(StatsProvider stats) {
     final cleanSessions = stats.sessions.where((s) => !s.usedParachute);
-    final totalCleanMinutes = cleanSessions.fold<int>(0, (sum, s) => sum + s.durationMinutes);
-
+    final totalCleanMinutes = cleanSessions.fold<int>(
+      0,
+      (sum, s) => sum + s.durationMinutes,
+    );
     final totalHours = (totalCleanMinutes / 60).floor();
     final remainingMins = totalCleanMinutes % 60;
 
-    final streak = _calculateStreak(stats.sessions);
-    final longestBlock = _getLongestBlock(stats.sessions);
-    final primeTime = _getPrimeTime(stats.sessions);
+    final totalReelsFreeMins = stats.reelsFreeRecords.fold<int>(
+      0,
+      (sum, r) => sum + r.durationMinutes,
+    );
+    final reelsHours = (totalReelsFreeMins / 60).floor();
+    final reelsMins = totalReelsFreeMins % 60;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
@@ -285,7 +365,7 @@ class _StatsScreenState extends State<StatsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'TOTAL TIME RECLAIMED',
+                'TOTAL TIME RECLAIMED (PHONE LOCK)',
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
@@ -293,14 +373,14 @@ class _StatsScreenState extends State<StatsScreen> {
                   letterSpacing: 2.0,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
                     '$totalHours',
                     style: const TextStyle(
-                      fontSize: 48,
+                      fontSize: 36,
                       fontWeight: FontWeight.w900,
                       color: AppConstants.primaryAccent,
                       height: 1,
@@ -308,12 +388,11 @@ class _StatsScreenState extends State<StatsScreen> {
                     ),
                   ),
                   const Padding(
-                    padding: EdgeInsets.only(bottom: 6, left: 4, right: 8),
+                    padding: EdgeInsets.only(bottom: 4, left: 2, right: 6),
                     child: Text(
                       'h',
                       style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
                         color: AppConstants.primaryAccent,
                       ),
                     ),
@@ -321,7 +400,7 @@ class _StatsScreenState extends State<StatsScreen> {
                   Text(
                     '$remainingMins',
                     style: const TextStyle(
-                      fontSize: 48,
+                      fontSize: 36,
                       fontWeight: FontWeight.w900,
                       color: AppConstants.primaryAccent,
                       height: 1,
@@ -329,14 +408,71 @@ class _StatsScreenState extends State<StatsScreen> {
                     ),
                   ),
                   const Padding(
-                    padding: EdgeInsets.only(bottom: 6, left: 4),
+                    padding: EdgeInsets.only(bottom: 4, left: 2),
                     child: Text(
                       'm',
                       style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
                         color: AppConstants.primaryAccent,
                       ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        _SectionCard(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'TOTAL REELS-FREE INSTAGRAM ATTENTION TIME',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: AppConstants.textMuted,
+                  letterSpacing: 2.0,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '$reelsHours',
+                    style: const TextStyle(
+                      fontSize: 36,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                      height: 1,
+                      fontFeatures: [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 4, left: 2, right: 6),
+                    child: Text(
+                      'h',
+                      style: TextStyle(fontSize: 16, color: Colors.white70),
+                    ),
+                  ),
+                  Text(
+                    '$reelsMins',
+                    style: const TextStyle(
+                      fontSize: 36,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                      height: 1,
+                      fontFeatures: [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 4, left: 2),
+                    child: Text(
+                      'm',
+                      style: TextStyle(fontSize: 16, color: Colors.white70),
                     ),
                   ),
                 ],
@@ -359,7 +495,7 @@ class _StatsScreenState extends State<StatsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '$streak days',
+                      '${_calculateStreak(stats.sessions)} days',
                       style: const TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w900,
@@ -370,7 +506,7 @@ class _StatsScreenState extends State<StatsScreen> {
                     ),
                     const SizedBox(height: 4),
                     const Text(
-                      'Current streak',
+                      'Current Streak (Full Focus)',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -383,79 +519,6 @@ class _StatsScreenState extends State<StatsScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _SectionCard(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(
-                      Icons.emoji_events_rounded,
-                      color: Colors.amber,
-                      size: 28,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      '$longestBlock m',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: AppConstants.textPrimary,
-                        fontFeatures: [FontFeature.tabularFigures()],
-                      ),
-                    ),
-                    const Text(
-                      'Longest Block',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: AppConstants.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _SectionCard(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
-                      primeTime.contains('Night')
-                          ? Icons.nightlight_round
-                          : Icons.wb_sunny_rounded,
-                      color: Colors.indigoAccent.shade100,
-                      size: 28,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      primeTime,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: AppConstants.textPrimary,
-                      ),
-                    ),
-                    const Text(
-                      'Prime Focus',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: AppConstants.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
       ],
     );
   }
@@ -463,41 +526,62 @@ class _StatsScreenState extends State<StatsScreen> {
   Widget _buildTrendsTab(
     Map<String, List<FreedomSession>> cleanSessionsByDay,
     Map<String, List<FreedomSession>> cleanSessionsByMonth,
-    Map<String, List<FreedomSession>> allSessionsByDay,
-    Map<String, List<FreedomSession>> allSessionsByMonth,
+    Map<String, List<ReelsFreeTimeRecord>> reelsFreeByDay,
+    Map<String, List<ReelsFreeTimeRecord>> reelsFreeByMonth,
   ) {
-    final int offset = _currentPageIndex - _virtualCenter;
     final DateTime activeTargetDate = _getTargetDateForPage(_currentPageIndex);
-    
-    int successfulPeriodSessions = 0;
-    int periodParachutes = 0;
+    int activeSumMinutes = 0;
 
-    // FIXED: Summary indicators leverage indexed map entries instantly for peak background sliding efficiency
     if (_selectedFilterIndex == 0) {
-      final dayKey = "${activeTargetDate.year}-${activeTargetDate.month.toString().padLeft(2, '0')}-${activeTargetDate.day.toString().padLeft(2, '0')}";
-      final daySessions = allSessionsByDay[dayKey] ?? [];
-      periodParachutes = daySessions.where((s) => s.usedParachute).length;
-      successfulPeriodSessions = daySessions.length - periodParachutes;
+      final dKey =
+          "${activeTargetDate.year}-${activeTargetDate.month.toString().padLeft(2, '0')}-${activeTargetDate.day.toString().padLeft(2, '0')}";
+      if (_activeMetricIndex == 0) {
+        activeSumMinutes = (cleanSessionsByDay[dKey] ?? []).fold(
+          0,
+          (sum, s) => sum + s.durationMinutes,
+        );
+      } else {
+        activeSumMinutes = (reelsFreeByDay[dKey] ?? []).fold(
+          0,
+          (sum, r) => sum + r.durationMinutes,
+        );
+      }
     } else if (_selectedFilterIndex == 1) {
-      DateTime weekStart = activeTargetDate.subtract(Duration(days: activeTargetDate.weekday - 1));
+      DateTime weekStart = activeTargetDate.subtract(
+        Duration(days: activeTargetDate.weekday - 1),
+      );
       for (int i = 0; i < 7; i++) {
         final d = weekStart.add(Duration(days: i));
-        final dayKey = "${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
-        final daySessions = allSessionsByDay[dayKey] ?? [];
-        final parachutes = daySessions.where((s) => s.usedParachute).length;
-        periodParachutes += parachutes;
-        successfulPeriodSessions += (daySessions.length - parachutes);
+        final dKey =
+            "${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
+        activeSumMinutes += _activeMetricIndex == 0
+            ? (cleanSessionsByDay[dKey] ?? []).fold(
+                0,
+                (sum, s) => sum + s.durationMinutes,
+              )
+            : (reelsFreeByDay[dKey] ?? []).fold(
+                0,
+                (sum, r) => sum + r.durationMinutes,
+              );
       }
     } else {
-      final monthKey = "${activeTargetDate.year}-${activeTargetDate.month.toString().padLeft(2, '0')}";
-      final monthSessions = allSessionsByMonth[monthKey] ?? [];
-      periodParachutes = monthSessions.where((s) => s.usedParachute).length;
-      successfulPeriodSessions = monthSessions.length - periodParachutes;
+      final mKey =
+          "${activeTargetDate.year}-${activeTargetDate.month.toString().padLeft(2, '0')}";
+      activeSumMinutes = _activeMetricIndex == 0
+          ? (cleanSessionsByMonth[mKey] ?? []).fold(
+              0,
+              (sum, s) => sum + s.durationMinutes,
+            )
+          : (reelsFreeByMonth[mKey] ?? []).fold(
+              0,
+              (sum, r) => sum + r.durationMinutes,
+            );
     }
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
       children: [
+        // Filter Switcher Pills row
         _SectionCard(
           padding: const EdgeInsets.all(4),
           radius: 999,
@@ -509,13 +593,23 @@ class _StatsScreenState extends State<StatsScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 24),
-        
+        const SizedBox(height: 12),
+
+        // NEW: Dual Analytics Source Metric Toggle Row Selection Panel
+        Row(
+          children: [
+            _buildMetricToggleOption(0, "Focus Lock"),
+            const SizedBox(width: 8),
+            _buildMetricToggleOption(1, "Reels-Free Time"),
+          ],
+        ),
+        const SizedBox(height: 16),
+
         SizedBox(
           height: 310,
           child: PageView.builder(
             controller: _pageController,
-            physics: const BouncingScrollPhysics(), // Injects liquid elastic native scroll simulation tracking 
+            physics: const BouncingScrollPhysics(),
             onPageChanged: (index) {
               setState(() {
                 _currentPageIndex = index;
@@ -525,22 +619,44 @@ class _StatsScreenState extends State<StatsScreen> {
             itemBuilder: (context, index) {
               final int pageOffset = index - _virtualCenter;
               final DateTime targetDate = _getTargetDateForPage(index);
-              
-              // Map lookup takes exactly 0ms instead of dropping frame blocks
-              final chartData = _getChartDataForPage(targetDate, cleanSessionsByDay, cleanSessionsByMonth);
+              final chartData = _getChartDataForPage(
+                targetDate,
+                cleanSessionsByDay,
+                cleanSessionsByMonth,
+                reelsFreeByDay,
+                reelsFreeByMonth,
+              );
 
-              final maxMinutes = chartData.isEmpty ? 0 : chartData.map((d) => d.value).reduce((a, b) => a > b ? a : b);
+              final maxMinutes = chartData.isEmpty
+                  ? 0
+                  : chartData
+                        .map((d) => d.value)
+                        .reduce((a, b) => a > b ? a : b);
               final chartMax = maxMinutes > 0 ? maxMinutes : 60.0;
 
               String headerTitle = "";
               if (_selectedFilterIndex == 0) {
-                headerTitle = pageOffset == 0 ? "Today" : pageOffset == -1 ? "Yesterday" : DateFormat('MMM dd, yyyy').format(targetDate);
+                headerTitle = pageOffset == 0
+                    ? "Today"
+                    : pageOffset == -1
+                    ? "Yesterday"
+                    : DateFormat('MMM dd, yyyy').format(targetDate);
               } else if (_selectedFilterIndex == 1) {
-                DateTime start = targetDate.subtract(Duration(days: targetDate.weekday - 1));
+                DateTime start = targetDate.subtract(
+                  Duration(days: targetDate.weekday - 1),
+                );
                 DateTime end = start.add(const Duration(days: 6));
-                headerTitle = pageOffset == 0 ? "This Week" : pageOffset == -1 ? "Last Week" : "${DateFormat('MMM dd').format(start)} - ${DateFormat('MMM dd').format(end)}";
+                headerTitle = pageOffset == 0
+                    ? "This Week"
+                    : pageOffset == -1
+                    ? "Last Week"
+                    : "${DateFormat('MMM dd').format(start)} - ${DateFormat('MMM dd').format(end)}";
               } else {
-                headerTitle = pageOffset == 0 ? "This Month" : pageOffset == -1 ? "Last Month" : DateFormat('MMMM yyyy').format(targetDate);
+                headerTitle = pageOffset == 0
+                    ? "This Month"
+                    : pageOffset == -1
+                    ? "Last Month"
+                    : DateFormat('MMMM yyyy').format(targetDate);
               }
 
               return Padding(
@@ -555,8 +671,15 @@ class _StatsScreenState extends State<StatsScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.chevron_left_rounded, color: AppConstants.textMuted, size: 20),
-                            onPressed: () => _pageController.previousPage(duration: const Duration(milliseconds: 250), curve: Curves.easeInOut),
+                            icon: const Icon(
+                              Icons.chevron_left_rounded,
+                              color: AppConstants.textMuted,
+                              size: 20,
+                            ),
+                            onPressed: () => _pageController.previousPage(
+                              duration: const Duration(milliseconds: 250),
+                              curve: Curves.easeInOut,
+                            ),
                           ),
                           Text(
                             headerTitle,
@@ -567,8 +690,17 @@ class _StatsScreenState extends State<StatsScreen> {
                             ),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.chevron_right_rounded, color: AppConstants.textMuted, size: 20),
-                            onPressed: pageOffset == 0 ? null : () => _pageController.nextPage(duration: const Duration(milliseconds: 250), curve: Curves.easeInOut),
+                            icon: const Icon(
+                              Icons.chevron_right_rounded,
+                              color: AppConstants.textMuted,
+                              size: 20,
+                            ),
+                            onPressed: pageOffset == 0
+                                ? null
+                                : () => _pageController.nextPage(
+                                    duration: const Duration(milliseconds: 250),
+                                    curve: Curves.easeInOut,
+                                  ),
                           ),
                         ],
                       ),
@@ -576,11 +708,13 @@ class _StatsScreenState extends State<StatsScreen> {
                       Center(
                         child: Text(
                           _touchedBarIndex != null
-                              ? '${chartData[_touchedBarIndex!].value.toInt()} minutes focused'
-                              : '${chartData.map((e) => e.value).fold(0.0, (a, b) => a + b).toInt()} total minutes',
+                              ? '${chartData[_touchedBarIndex!].value.toInt()} mins'
+                              : '${chartData.map((e) => e.value).fold(0.0, (a, b) => a + b).toInt()} total mins',
                           style: TextStyle(
                             fontSize: 14,
-                            color: _touchedBarIndex != null ? AppConstants.primaryAccent : AppConstants.textSecondary,
+                            color: _touchedBarIndex != null
+                                ? AppConstants.primaryAccent
+                                : AppConstants.textSecondary,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -597,24 +731,25 @@ class _StatsScreenState extends State<StatsScreen> {
                             final isTouched = _touchedBarIndex == barIndex;
                             final isCurrent = dataPoint.isCurrent;
 
-                            Color barColor;
-                            if (isTouched) {
-                              barColor = AppConstants.primaryAccent;
-                            } else if (isCurrent) {
-                              barColor = AppConstants.primaryAccent.withOpacity(0.8);
-                            } else if (dataPoint.value > 0) {
-                              barColor = AppConstants.primaryAccent.withOpacity(0.3);
-                            } else {
-                              barColor = AppConstants.borderColor;
-                            }
-
-                            Color labelColor = (isTouched || isCurrent) ? AppConstants.primaryAccent : AppConstants.textMuted;
+                            Color barColor = isTouched
+                                ? AppConstants.primaryAccent
+                                : isCurrent
+                                ? AppConstants.primaryAccent.withOpacity(0.8)
+                                : dataPoint.value > 0
+                                ? (_activeMetricIndex == 0
+                                      ? AppConstants.primaryAccent.withOpacity(
+                                          0.3,
+                                        )
+                                      : Colors.white24)
+                                : AppConstants.borderColor;
 
                             return _ChartBar(
                               label: dataPoint.label,
                               value: dataPoint.value.toInt(),
                               barColor: barColor,
-                              labelColor: labelColor,
+                              labelColor: (isTouched || isCurrent)
+                                  ? AppConstants.primaryAccent
+                                  : AppConstants.textMuted,
                               isTouched: isTouched,
                               isCurrent: isCurrent,
                               width: chartData.length > 5 ? 28 : 42,
@@ -623,7 +758,8 @@ class _StatsScreenState extends State<StatsScreen> {
                                 HapticFeedback.selectionClick();
                                 setState(() => _touchedBarIndex = barIndex);
                               },
-                              onPressEnd: () => setState(() => _touchedBarIndex = null),
+                              onPressEnd: () =>
+                                  setState(() => _touchedBarIndex = null),
                             );
                           }),
                         ),
@@ -635,60 +771,71 @@ class _StatsScreenState extends State<StatsScreen> {
             },
           ),
         ),
-        
         const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: _SectionCard(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-                child: Column(
-                  children: [
-                    Text(
-                      '$successfulPeriodSessions',
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        color: AppConstants.textPrimary,
-                        fontFeatures: [FontFeature.tabularFigures()],
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Sessions',
-                      style: TextStyle(fontSize: 12, color: AppConstants.textSecondary),
-                    ),
-                  ],
+        _SectionCard(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                _activeMetricIndex == 0
+                    ? "RECLAIMED FOCUS TIME"
+                    : "CLEAN ATTENTION TIME",
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: AppConstants.textMuted,
                 ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _SectionCard(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-                child: Column(
-                  children: [
-                    Text(
-                      '$periodParachutes',
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        color: AppConstants.primaryAccent,
-                        fontFeatures: [FontFeature.tabularFigures()],
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Parachutes',
-                      style: TextStyle(fontSize: 12, color: AppConstants.textSecondary),
-                    ),
-                  ],
+              Text(
+                "${(activeSumMinutes / 60).floor()}h ${activeSumMinutes % 60}m",
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  color: AppConstants.primaryAccent,
+                  fontFeatures: [FontFeature.tabularFigures()],
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ],
+    );
+  }
+
+  Widget _buildMetricToggleOption(int targetIndex, String title) {
+    final isSelected = _activeMetricIndex == targetIndex;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() {
+          _activeMetricIndex = targetIndex;
+          _touchedBarIndex = null;
+        }),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected ? AppConstants.cardColor : Colors.transparent,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isSelected
+                  ? AppConstants.primaryAccent.withOpacity(0.4)
+                  : AppConstants.borderColor,
+            ),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            title,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: isSelected
+                  ? AppConstants.primaryAccent
+                  : AppConstants.textMuted,
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -718,7 +865,9 @@ class _StatsScreenState extends State<StatsScreen> {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w800,
-              color: isSelected ? AppConstants.textDark : AppConstants.textMuted,
+              color: isSelected
+                  ? AppConstants.textDark
+                  : AppConstants.textMuted,
             ),
           ),
         ),
@@ -733,7 +882,7 @@ class _StatsScreenState extends State<StatsScreen> {
         const Padding(
           padding: EdgeInsets.fromLTRB(24, 8, 24, 14),
           child: Text(
-            'ALL SESSIONS',
+            'ALL FOCUS SESSIONS',
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w700,

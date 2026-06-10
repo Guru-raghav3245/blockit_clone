@@ -2,6 +2,7 @@ package com.example.blockit_clone
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
+import android.content.Context
 import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Handler
@@ -14,6 +15,9 @@ import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.Button
+import org.json.JSONArray
+import org.json.JSONObject
+import es.antonborri.home_widget.HomeWidgetPlugin
 
 class BlockitAccessibilityService : AccessibilityService() {
 
@@ -26,10 +30,12 @@ class BlockitAccessibilityService : AccessibilityService() {
     private var overlayView: View? = null
     private val handler = Handler(Looper.getMainLooper())
     private var lastKickoutTime = 0L
+    
+    // Lifecycle properties to capture dynamic focus duration
+    private var instagramSessionStart = 0L
 
     override fun onServiceConnected() {
         instance = this
-
         serviceInfo = serviceInfo.apply {
             eventTypes = AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED or
                          AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED or
@@ -43,19 +49,28 @@ class BlockitAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (event == null || !isReelsBlockingEnabled) return
+        if (event == null) return
 
         val packageName = event.packageName?.toString() ?: return
-        if (packageName != "com.instagram.android") return
+        
+        // 1. Session tracking allocation architecture
+        if (packageName == "com.instagram.android") {
+            if (instagramSessionStart == 0L) {
+                instagramSessionStart = System.currentTimeMillis()
+            }
+        } else {
+            // User navigated completely away from Instagram -> Flush clean accumulated duration
+            finalizeCleanInstagramSession()
+        }
+
+        if (!isReelsBlockingEnabled || packageName != "com.instagram.android") return
 
         val root = rootInActiveWindow ?: return
-
         val now = System.currentTimeMillis()
         if (now - lastKickoutTime < 1200L) {
             return
         }
 
-        // 1. Check if the active viewport layout contains visible Reels layout indicators
         var hasVisibleClipsLayout = false
         val clipsLayoutNodes = root.findAccessibilityNodeInfosByViewId("com.instagram.android:id/root_clips_layout")
         if (!clipsLayoutNodes.isNullOrEmpty()) {
@@ -67,7 +82,6 @@ class BlockitAccessibilityService : AccessibilityService() {
             }
         }
 
-        // 2. Check if the dedicated bottom Reels tab is actively selected and visible to the user
         var isReelsTabSelected = false
         val clipsTabNodes = root.findAccessibilityNodeInfosByViewId("com.instagram.android:id/clips_tab")
         if (!clipsTabNodes.isNullOrEmpty()) {
@@ -79,7 +93,6 @@ class BlockitAccessibilityService : AccessibilityService() {
             }
         }
 
-        // 3. Fallback check for localized textual navigation triggers matching selection models
         var isReelsTextTabActive = false
         val reelsTextNodes = root.findAccessibilityNodeInfosByText("Reels")
         if (!reelsTextNodes.isNullOrEmpty()) {
@@ -96,16 +109,48 @@ class BlockitAccessibilityService : AccessibilityService() {
             lastKickoutTime = now
             Log.d("Blockit", "Active Reels signature verified -> Executing Home Tab redirection")
             
-            showReelsBlockedOverlay()
+            // Intercepted by a Reel -> Finalize and save clean time accumulated up to this exact second
+            finalizeCleanInstagramSession()
 
-            // Try programmatically clicking onto the Home feed button
+            showReelsBlockedOverlay()
             val redirectedSuccessfully = navigateToHomeTab(root)
             
-            // Fallback: If layout covers the navigation bar, execute a single back action to dismiss the layer
             if (!redirectedSuccessfully) {
                 Log.d("Blockit", "Home tab not interactable, dropping immersive sheet via system back action")
                 performGlobalAction(GLOBAL_ACTION_BACK)
             }
+        }
+    }
+
+    private fun finalizeCleanInstagramSession() {
+        if (instagramSessionStart == 0L) return
+        
+        val elapsedMs = System.currentTimeMillis() - instagramSessionStart
+        instagramSessionStart = 0L // Reset immediately to prevent looping conditions
+        
+        // Log clean sessions if they lasted for longer than 10 seconds to screen out accidental launches
+        if (elapsedMs >= 10000L) {
+            val minutesEarned = (elapsedMs / 1000L / 60L).toInt().coerceAtLeast(1)
+            commitCleanTimeToBuffer(minutesEarned)
+        }
+    }
+
+    private fun commitCleanTimeToBuffer(minutes: Int) {
+        try {
+            val widgetData = HomeWidgetPlugin.getData(applicationContext)
+            val currentBufferJson = widgetData.getString("native_reels_free_time_buffer", "[]") ?: "[]"
+            val jsonArray = JSONArray(currentBufferJson)
+            
+            val recordObject = JSONObject().apply {
+                put("durationMinutes", minutes)
+                put("timestamp", System.currentTimeMillis())
+            }
+            jsonArray.put(recordObject)
+            
+            widgetData.edit().putString("native_reels_free_time_buffer", jsonArray.toString()).apply()
+            Log.d("Blockit", "Successfully cached $minutes clean reels-free minutes to disk buffer")
+        } catch (e: Exception) {
+            Log.e("Blockit", "Failed to compile native time buffer map array: ${e.message}")
         }
     }
 
@@ -120,6 +165,8 @@ class BlockitAccessibilityService : AccessibilityService() {
             if (!nodes.isNullOrEmpty()) {
                 for (node in nodes) {
                     if (node.isVisibleToUser && performClick(node)) {
+                        // Restart clean tracking loop since they are safely back on the home feed
+                        instagramSessionStart = System.currentTimeMillis()
                         return true
                     }
                 }
@@ -132,6 +179,7 @@ class BlockitAccessibilityService : AccessibilityService() {
             if (!nodes.isNullOrEmpty()) {
                 for (node in nodes) {
                     if (node.isVisibleToUser && performClick(node)) {
+                        instagramSessionStart = System.currentTimeMillis()
                         return true
                     }
                 }
@@ -154,16 +202,12 @@ class BlockitAccessibilityService : AccessibilityService() {
     private fun showReelsBlockedOverlay() {
         try {
             removeOverlay()
-
             val inflater = LayoutInflater.from(this)
             overlayView = inflater.inflate(R.layout.reels_blocked_overlay, null)
 
-            // Button 1 logic: Return to the blockit companion app workspace
             val openAppButton = overlayView?.findViewById<Button>(R.id.btn_open_blockit)
             openAppButton?.setOnClickListener {
-                Log.d("Blockit", "Overlay action button clicked -> Routing back to host application")
                 removeOverlay()
-
                 val launchIntent = packageManager.getLaunchIntentForPackage("com.example.blockit_clone")
                 if (launchIntent != null) {
                     launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
@@ -171,10 +215,8 @@ class BlockitAccessibilityService : AccessibilityService() {
                 }
             }
 
-            // Button 2 logic: Close modal window layout exclusively 
             val dismissButton = overlayView?.findViewById<Button>(R.id.btn_dismiss_overlay)
             dismissButton?.setOnClickListener {
-                Log.d("Blockit", "Overlay dismiss button clicked -> Cleaning up layout overlay")
                 removeOverlay()
             }
 
@@ -186,10 +228,7 @@ class BlockitAccessibilityService : AccessibilityService() {
                 height = WindowManager.LayoutParams.MATCH_PARENT
                 gravity = Gravity.CENTER
             }
-
             (getSystemService(WINDOW_SERVICE) as WindowManager).addView(overlayView, params)
-            // Note: handler.postDelayed timer removed completely as requested. Modal will persist until explicitly closed.
-
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -206,9 +245,12 @@ class BlockitAccessibilityService : AccessibilityService() {
         } catch (_: Exception) {}
     }
 
-    override fun onInterrupt() {}
+    override fun onInterrupt() {
+        finalizeCleanInstagramSession()
+    }
 
     override fun onDestroy() {
+        finalizeCleanInstagramSession()
         removeOverlay()
         instance = null
         super.onDestroy()
