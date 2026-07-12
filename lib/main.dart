@@ -4,6 +4,7 @@ import 'package:home_widget/home_widget.dart';
 import 'firebase_options.dart';
 import 'app.dart';
 import 'core/utils/widget_helper.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   // REQUIRED: Ensure Flutter engine is initialized before calling native code
@@ -16,6 +17,9 @@ void main() async {
 
   // FIXED: Registers the interactivity callback handler for modern home_widget functionality
   HomeWidget.registerInteractivityCallback(homeWidgetBackgroundCallback);
+
+  await NotificationService().initialize();
+  await NotificationService().requestPermissions();
 
   runApp(const BlockitApp());
 }

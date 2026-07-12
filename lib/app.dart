@@ -4,6 +4,7 @@ import 'package:home_widget/home_widget.dart';
 import 'core/theme/app_theme.dart';
 import 'providers/session_provider.dart';
 import 'providers/stats_provider.dart';
+import 'providers/tasks_provider.dart';
 import 'features/splash/splash_screen.dart';
 
 class BlockitApp extends StatelessWidget {
@@ -15,6 +16,7 @@ class BlockitApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => SessionProvider()),
         ChangeNotifierProvider(create: (_) => StatsProvider()),
+        ChangeNotifierProvider(create: (_) => TasksProvider()),
       ],
       child: MaterialApp(
         title: 'blockit',
@@ -53,6 +55,7 @@ class _WidgetLaunchObserverState extends State<WidgetLaunchObserver> {
       HomeWidget.widgetClicked.listen((uri) {
         if (uri != null) _handleWidgetUri(uri, sessionProvider);
       });
+
     });
   }
 

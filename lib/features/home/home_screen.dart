@@ -13,6 +13,8 @@ import '../../core/utils/platform_channel_helper.dart';
 import '../active_session/active_session_screen.dart';
 import '../../core/utils/app_routes.dart';
 import '../../core/utils/widget_helper.dart';
+import '../tasks/tasks_screen.dart';
+import '../../providers/tasks_provider.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -190,6 +192,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         backgroundColor: AppConstants.backgroundColor,
                       ),
                 _transitionCompleted
+                    ? const RepaintBoundary(child: TasksScreen())
+                    : const Scaffold(
+                        backgroundColor: AppConstants.backgroundColor,
+                      ),
+                _transitionCompleted
                     ? const RepaintBoundary(child: SettingsScreen())
                     : const Scaffold(
                         backgroundColor: AppConstants.backgroundColor,
@@ -226,7 +233,16 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ],
                   ),
-                  if (_currentIndex == 0) _buildPlayButton(_duration!),
+                  if (_currentIndex == 0)
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        _buildTaskWarningBanner(_duration!.value),
+                        const SizedBox(height: 8),
+                        _buildPlayButton(_duration!),
+                      ],
+                    ),
                 ],
               ),
             ),
@@ -382,7 +398,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(width: 4),
                     _buildNavItem(1, Icons.show_chart_rounded),
                     const SizedBox(width: 4),
-                    _buildNavItem(2, Icons.settings_rounded),
+                    _buildNavItem(2, Icons.check_circle_outline_rounded),
+                    const SizedBox(width: 4),
+                    _buildNavItem(3, Icons.settings_rounded),
                   ]
                 : [
                     AnimatedContainer(
@@ -392,8 +410,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         color: _accentColor,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
-                        Icons.show_chart_rounded,
+                      child: Icon(
+                        _currentIndex == 1 ? Icons.show_chart_rounded :
+                        _currentIndex == 2 ? Icons.check_circle_outline_rounded : Icons.settings_rounded,
                         color: AppConstants.textDark,
                         size: 26,
                       ),
@@ -980,6 +999,59 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildTaskWarningBanner(int durationMinutes) {
+    return Consumer<TasksProvider>(
+      builder: (context, tasksProvider, child) {
+        final now = DateTime.now();
+        final endTime = now.add(Duration(minutes: durationMinutes));
+        final todayWeekday = now.weekday;
+
+        final overlappingTasks = tasksProvider.tasks.where((t) {
+          if (!t.selectedDays.contains(todayWeekday)) return false;
+          final taskTime = DateTime(now.year, now.month, now.day, t.time.hour, t.time.minute);
+
+          // Task is scheduled between now and session end
+          return taskTime.isAfter(now) && taskTime.isBefore(endTime);
+        }).toList();
+
+        if (overlappingTasks.isEmpty) return const SizedBox.shrink();
+
+        final nextTask = overlappingTasks.first;
+
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.orange.withOpacity(0.9),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 16),
+              const SizedBox(width: 6),
+              Text(
+                '${nextTask.title} at ${nextTask.time.format(context)}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

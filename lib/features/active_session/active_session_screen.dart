@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../providers/session_provider.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/platform_channel_helper.dart';
+import '../../providers/tasks_provider.dart';
 
 class ActiveSessionScreen extends StatefulWidget {
   const ActiveSessionScreen({super.key});
@@ -69,6 +70,57 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
 
   void _onUserInteraction(PointerEvent event) {
     _resetInactivityTimer();
+  }
+
+  Widget _buildActiveSessionTaskWarning() {
+    return Consumer<TasksProvider>(
+      builder: (context, tasksProvider, child) {
+        final remainingSec = _sessionProvider.remainingSeconds;
+        final now = DateTime.now();
+        final endTime = now.add(Duration(seconds: remainingSec));
+        final todayWeekday = now.weekday;
+
+        final overlappingTasks = tasksProvider.tasks.where((t) {
+          if (!t.selectedDays.contains(todayWeekday)) return false;
+          final taskTime = DateTime(now.year, now.month, now.day, t.time.hour, t.time.minute);
+
+          // Task is scheduled between now and session end
+          return taskTime.isAfter(now) && taskTime.isBefore(endTime);
+        }).toList();
+
+        if (overlappingTasks.isEmpty) return const SizedBox.shrink();
+
+        final nextTask = overlappingTasks.first;
+
+        return Padding(
+          padding: const EdgeInsets.only(top: 12.0),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.orange.withOpacity(0.9),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.orangeAccent, width: 1),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 16),
+                const SizedBox(width: 8),
+                Text(
+                  'Upcoming Task: ${nextTask.title} at ${nextTask.time.format(context)}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -203,6 +255,8 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
                       ),
                     ),
                   ),
+
+                  if (hours > 0 || minutes > 0 || seconds > 0) _buildActiveSessionTaskWarning(),
 
                   const Spacer(),
                   // Responsive Timer Layout
