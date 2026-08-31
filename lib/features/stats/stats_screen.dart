@@ -51,37 +51,6 @@ class _StatsScreenState extends State<StatsScreen> {
     }
   }
 
-  int _getLongestBlock(List<FreedomSession> sessions) {
-    final cleanSessions = sessions.where((s) => !s.usedParachute);
-    if (cleanSessions.isEmpty) return 0;
-    return cleanSessions
-        .map((s) => s.durationMinutes)
-        .reduce((a, b) => a > b ? a : b);
-  }
-
-  String _getPrimeTime(List<FreedomSession> sessions) {
-    final cleanSessions = sessions.where((s) => !s.usedParachute);
-    if (cleanSessions.isEmpty) return "Not enough data";
-
-    int morningMinutes = 0, afternoonMinutes = 0, nightMinutes = 0;
-    for (var s in cleanSessions) {
-      final hour = s.startTime.hour;
-      if (hour >= 5 && hour < 12)
-        morningMinutes += s.durationMinutes;
-      else if (hour >= 12 && hour < 18)
-        afternoonMinutes += s.durationMinutes;
-      else
-        nightMinutes += s.durationMinutes;
-    }
-    if (morningMinutes == 0 && afternoonMinutes == 0 && nightMinutes == 0)
-      return "No Focus Time";
-    if (morningMinutes >= afternoonMinutes && morningMinutes >= nightMinutes)
-      return "Morning Bird";
-    if (afternoonMinutes >= morningMinutes && afternoonMinutes >= nightMinutes)
-      return "Afternoon Focus";
-    return "Night Owl";
-  }
-
   int _calculateStreak(List<FreedomSession> sessions) {
     if (sessions.isEmpty) return 0;
     final validSessions = sessions.where(
@@ -106,8 +75,9 @@ class _StatsScreenState extends State<StatsScreen> {
     DateTime currentDate = today;
 
     if (!activeDays.contains(today) &&
-        !activeDays.contains(today.subtract(const Duration(days: 1))))
+        !activeDays.contains(today.subtract(const Duration(days: 1)))) {
       return 0;
+    }
     currentDate = activeDays.contains(today)
         ? today
         : today.subtract(const Duration(days: 1));
@@ -126,14 +96,16 @@ class _StatsScreenState extends State<StatsScreen> {
   DateTime _getTargetDateForPage(int pageIndex) {
     final int offset = pageIndex - _virtualCenter;
     final now = DateTime.now();
-    if (_selectedFilterIndex == 0)
+    if (_selectedFilterIndex == 0) {
       return DateTime(now.year, now.month, now.day).add(Duration(days: offset));
-    if (_selectedFilterIndex == 1)
+    }
+    if (_selectedFilterIndex == 1) {
       return DateTime(
         now.year,
         now.month,
         now.day,
       ).add(Duration(days: offset * 7));
+    }
     return DateTime(now.year, now.month + offset, 1);
   }
 
