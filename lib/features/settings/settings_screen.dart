@@ -52,6 +52,54 @@ class _SettingsScreenState extends State<SettingsScreen>
     }
   }
 
+  void _showAccessibilityRequiredDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppConstants.cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text(
+          'Permission Required',
+          style: TextStyle(
+            color: AppConstants.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: const Text(
+          'Blocking Instagram Reels needs Accessibility Service permission to detect the Reels tab. Please enable "Blockit Accessibility" in the settings.',
+          style: TextStyle(color: AppConstants.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppConstants.textMuted),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppConstants.primaryAccent,
+              foregroundColor: AppConstants.textDark,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: () async {
+              Navigator.pop(context);
+              await PlatformChannelHelper.openAccessibilitySettings();
+              await _checkStatuses();
+            },
+            child: const Text(
+              'Open Settings',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -132,11 +180,32 @@ class _SettingsScreenState extends State<SettingsScreen>
             isActive: _isReelsBlockingEnabled,
             onTap: () async {
               final newValue = !_isReelsBlockingEnabled;
+              if (newValue && !_isAccessibilityEnabled) {
+                _showAccessibilityRequiredDialog();
+                return;
+              }
               await PlatformChannelHelper.enableReelsBlocking(newValue);
               if (mounted) {
                 setState(() => _isReelsBlockingEnabled = newValue);
               }
             },
+          ),
+
+          const SizedBox(height: 12),
+
+          _PermissionTile(
+            icon: Icons.accessibility_new_rounded,
+            title: 'Accessibility Service',
+            subtitle: 'Required for Reels-tab detection',
+            isActive: _isAccessibilityEnabled,
+            onTap: _isAccessibilityEnabled
+                ? null
+                : () async {
+                    await PlatformChannelHelper.openAccessibilitySettings();
+                  },
+            hint: _isAccessibilityEnabled
+                ? null
+                : 'Find "Blockit Accessibility" in the list and enable it',
           ),
 
           if (_isReelsBlockingEnabled)
