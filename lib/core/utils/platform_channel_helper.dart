@@ -9,6 +9,10 @@ class PlatformChannelHelper {
     'com.blockit/battery_stream',
   );
 
+  static const EventChannel _notificationStream = EventChannel(
+    'com.blockit/notifications',
+  );
+
   // ================== EXISTING METHODS ==================
 
   static Future<bool> startLockTask() async {
@@ -38,6 +42,10 @@ class PlatformChannelHelper {
     }
   }
 
+  static Future<void> openDeviceAdminSettings() async {
+    await _channel.invokeMethod('openDeviceAdminSettings');
+  }
+
   static Future<bool> isAccessibilityServiceEnabled() async {
     try {
       final result = await _channel.invokeMethod<bool>(
@@ -52,6 +60,23 @@ class PlatformChannelHelper {
   static Future<void> openAccessibilitySettings() async {
     try {
       await _channel.invokeMethod('openAccessibilitySettings');
+    } catch (e) {}
+  }
+
+  static Future<bool> isNotificationAccessEnabled() async {
+    try {
+      final result = await _channel.invokeMethod<bool>(
+        'isNotificationAccessEnabled',
+      );
+      return result ?? false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  static Future<void> openNotificationListenerSettings() async {
+    try {
+      await _channel.invokeMethod('openNotificationListenerSettings');
     } catch (e) {}
   }
 
@@ -76,6 +101,13 @@ class PlatformChannelHelper {
         'isCharging': map['isCharging'] as bool? ?? false,
       };
     });
+  }
+
+  // ================== NEW: LIVE NOTIFICATION FEED BRIDGE ==================
+  static Stream<Map<dynamic, dynamic>> watchNotifications() {
+    return _notificationStream
+        .receiveBroadcastStream()
+        .map((event) => event as Map<dynamic, dynamic>);
   }
 
   // ================== EXISTING: INSTAGRAM REELS BLOCKING ==================

@@ -9,7 +9,6 @@ import '../features/active_session/session_complete_screen.dart';
 
 enum SessionStartResult {
   success,
-  accessibilityDenied,
   alreadyActive,
   lockTaskFailed,
 }
@@ -60,13 +59,6 @@ class SessionProvider extends ChangeNotifier {
     BuildContext context,
   ) async {
     if (_isSessionActive) return SessionStartResult.alreadyActive;
-
-    final bool accessibilityEnabled =
-        await PlatformChannelHelper.isAccessibilityServiceEnabled();
-
-    if (!accessibilityEnabled) {
-      return SessionStartResult.accessibilityDenied;
-    }
 
     _isLocking = true;
     notifyListeners();

@@ -19,6 +19,7 @@ import io.flutter.plugin.common.EventChannel
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.blockit/device_admin"
     private val BATTERY_STREAM_CHANNEL = "com.blockit/battery_stream"
+    private val NOTIFICATION_STREAM_CHANNEL = "com.blockit/notifications"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -36,6 +37,7 @@ class MainActivity : FlutterActivity() {
                         } catch (e: Exception) {}
                         startLockTask()
                         BlockitAccessibilityService.isGeneralBlockingEnabled = true
+                        BlockitNotificationListenerService.setSessionActive(true)
                         result.success(true)
                     } else {
                         result.error("DEVICE_ADMIN_NOT_ACTIVE", "Activate Device Admin first", null)
@@ -43,11 +45,24 @@ class MainActivity : FlutterActivity() {
                 }
                 "stopLockTask" -> {
                     BlockitAccessibilityService.isGeneralBlockingEnabled = false
+                    BlockitNotificationListenerService.setSessionActive(false)
                     stopLockTask()
                     result.success(true)
                 }
                 "isDeviceAdminActive" -> {
                     result.success(dpm.isAdminActive(adminComponent))
+                }
+                "openDeviceAdminSettings" -> {
+                    try {
+                        val intent = Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).apply {
+                            putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, adminComponent)
+                            putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, "Blockit needs Device Admin to lock your screen during focus sessions.")
+                        }
+                        startActivity(intent)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("DEVICE_ADMIN_INTENT_FAILED", e.message, null)
+                    }
                 }
                 "isAccessibilityServiceEnabled" -> {
                     result.success(isAccessibilityServiceEnabled())
@@ -82,6 +97,17 @@ class MainActivity : FlutterActivity() {
                 }
                 "isReelsBlockingEnabled" -> {
                     result.success(BlockitAccessibilityService.isReelsBlockingEnabled)
+                }
+                "isNotificationAccessEnabled" -> {
+                    result.success(isNotificationListenerEnabled())
+                }
+                "openNotificationListenerSettings" -> {
+                    try {
+                        startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("NOTIF_LISTENER_INTENT_FAILED", e.message, null)
+                    }
                 }
                 else -> result.notImplemented()
             }
@@ -121,6 +147,14 @@ class MainActivity : FlutterActivity() {
                 }
             }
         )
+
+        // ================== NOTIFICATION FEED STREAM ==================
+        BlockitNotificationListenerService.listen(
+            EventChannel(
+                flutterEngine.dartExecutor.binaryMessenger,
+                NOTIFICATION_STREAM_CHANNEL,
+            )
+        )
     }
 
     private fun isAccessibilityServiceEnabled(): Boolean {
@@ -130,5 +164,15 @@ class MainActivity : FlutterActivity() {
             it.resolveInfo.serviceInfo.packageName == packageName &&
             it.resolveInfo.serviceInfo.name == BlockitAccessibilityService::class.java.name
         }
+    }
+
+    private fun isNotificationListenerEnabled(): Boolean {
+        val enabledListeners = Settings.Secure.getString(
+            contentResolver,
+            "enabled_notification_listeners",
+        ) ?: return false
+        if (enabledListeners.isBlank()) return false
+        val component = ComponentName(this, BlockitNotificationListenerService::class.java).flattenToString()
+        return enabledListeners.split(":").any { it.equals(component, ignoreCase = true) }
     }
 }

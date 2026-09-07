@@ -9,7 +9,6 @@ import '../../services/local_storage_service.dart';
 import '../../services/auth_service.dart';
 import '../settings/settings_screen.dart';
 import '../stats/stats_screen.dart';
-import '../../core/utils/platform_channel_helper.dart';
 import '../active_session/active_session_screen.dart';
 import '../../core/utils/app_routes.dart';
 import '../../core/utils/widget_helper.dart';
@@ -80,9 +79,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final sessionProvider = context.read<SessionProvider>();
     final result = await sessionProvider.startSession(duration, context);
     if (!mounted) return;
-    if (result == SessionStartResult.accessibilityDenied) {
-      _showPermissionDialog();
-    } else if (result == SessionStartResult.lockTaskFailed) {
+    if (result == SessionStartResult.lockTaskFailed) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Could not start focus lock. Enable Device Admin in Settings and try again.'),
@@ -997,11 +994,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 context,
               );
 
-              if (result == SessionStartResult.accessibilityDenied) {
-                _showPermissionDialog();
-                return;
-              }
-
               if (result == SessionStartResult.alreadyActive) {
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -1061,50 +1053,5 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _showPermissionDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppConstants.cardColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Text(
-          'Permission Required',
-          style: TextStyle(
-            color: AppConstants.textPrimary,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: const Text(
-          'To block distractions effectively, blockit needs Accessibility Service permission. Please enable "Blockit Accessibility" in the settings.',
-          style: TextStyle(color: AppConstants.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: AppConstants.textMuted),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppConstants.primaryAccent,
-              foregroundColor: AppConstants.textDark,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            onPressed: () {
-              Navigator.pop(context);
-              PlatformChannelHelper.openAccessibilitySettings();
-            },
-            child: const Text(
-              'Open Settings',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+
 }

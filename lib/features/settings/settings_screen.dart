@@ -14,6 +14,7 @@ class _SettingsScreenState extends State<SettingsScreen>
   bool _isDeviceAdminActive = false;
   bool _isAccessibilityEnabled = false;
   bool _isReelsBlockingEnabled = false;
+  bool _isNotificationAccessEnabled = false;
 
   @override
   void initState() {
@@ -38,12 +39,15 @@ class _SettingsScreenState extends State<SettingsScreen>
     final accessibility =
         await PlatformChannelHelper.isAccessibilityServiceEnabled();
     final reelsBlocking = await PlatformChannelHelper.isReelsBlockingEnabled();
+    final notificationAccess =
+        await PlatformChannelHelper.isNotificationAccessEnabled();
 
     if (mounted) {
       setState(() {
         _isDeviceAdminActive = admin;
         _isAccessibilityEnabled = accessibility;
         _isReelsBlockingEnabled = reelsBlocking;
+        _isNotificationAccessEnabled = notificationAccess;
       });
     }
   }
@@ -71,8 +75,15 @@ class _SettingsScreenState extends State<SettingsScreen>
             onTap: _isDeviceAdminActive
                 ? null
                 : () async {
-                    await PlatformChannelHelper.startLockTask();
-                    await _checkStatuses();
+                    try {
+                      await PlatformChannelHelper.openDeviceAdminSettings();
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Could not open Device Admin settings: $e')),
+                        );
+                      }
+                    }
                   },
           ),
 
@@ -81,7 +92,7 @@ class _SettingsScreenState extends State<SettingsScreen>
           _PermissionTile(
             icon: Icons.accessibility_new_rounded,
             title: 'Accessibility Service',
-            subtitle: 'Blocks swipe-to-exit gestures',
+            subtitle: 'Required for Instagram Reels blocking',
             isActive: _isAccessibilityEnabled,
             onTap: _isAccessibilityEnabled
                 ? null
@@ -91,6 +102,23 @@ class _SettingsScreenState extends State<SettingsScreen>
             hint: _isAccessibilityEnabled
                 ? null
                 : 'Find "Blockit Accessibility" in the list and enable it',
+          ),
+
+          const SizedBox(height: 12),
+
+          _PermissionTile(
+            icon: Icons.notifications_active_rounded,
+            title: 'Notification Access',
+            subtitle: 'Required to show notifications during focus sessions',
+            isActive: _isNotificationAccessEnabled,
+            onTap: _isNotificationAccessEnabled
+                ? null
+                : () async {
+                    await PlatformChannelHelper.openNotificationListenerSettings();
+                  },
+            hint: _isNotificationAccessEnabled
+                ? null
+                : 'Find "Blockit Notification Access" in the list and enable it',
           ),
 
           const SizedBox(height: 32),

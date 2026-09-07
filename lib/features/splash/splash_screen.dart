@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_constants.dart';
 import '../../providers/stats_provider.dart';
@@ -45,8 +46,13 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         _loadingStatus = "Loading secure configurations...";
       });
 
-      // Step 2: Initialize real local storage stats through the provider
-      await context.read<StatsProvider>().loadStats();
+      // Step 2: Initialize stats, syncing from the cloud if already signed in
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await context.read<StatsProvider>().loginAndSync(user.uid);
+      } else {
+        await context.read<StatsProvider>().loadStats();
+      }
       
       if (!mounted) return;
       setState(() {

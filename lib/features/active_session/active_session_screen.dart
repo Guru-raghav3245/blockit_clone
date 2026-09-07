@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -6,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../providers/session_provider.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/platform_channel_helper.dart';
+import '../../models/app_notification.dart';
 
 class ActiveSessionScreen extends StatefulWidget {
   const ActiveSessionScreen({super.key});
@@ -17,10 +19,14 @@ class ActiveSessionScreen extends StatefulWidget {
 class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
   Timer? _inactivityTimer;
   StreamSubscription<Map<String, dynamic>>? _batterySubscription;
+  StreamSubscription<Map<dynamic, dynamic>>? _notificationSubscription;
   bool _isDimmed = false;
   int _batteryPercentage = -1;
   bool _isCharging = false;
   late SessionProvider _sessionProvider;
+
+  final List<AppNotification> _notifications = [];
+  bool _showNotifications = false;
 
   @override
   void initState() {
@@ -28,6 +34,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
     _sessionProvider = context.read<SessionProvider>();
     _resetInactivityTimer();
     _listenToBatteryChanges();
+    _listenToNotifications();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _sessionProvider.onUndimRequested = _undim;
     });
@@ -37,6 +44,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
   void dispose() {
     _inactivityTimer?.cancel();
     _batterySubscription?.cancel();
+    _notificationSubscription?.cancel();
     _sessionProvider.onUndimRequested = null;
     super.dispose();
   }
@@ -65,6 +73,31 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
         });
       }
     });
+  }
+
+  // ================== LIVE NOTIFICATION FEED ==================
+  void _listenToNotifications() {
+    _notificationSubscription = PlatformChannelHelper.watchNotifications().listen(
+      (event) {
+        if (!mounted) return;
+        final type = event['type'] as String?;
+        if (type == 'posted') {
+          final notif = AppNotification.fromMap(event);
+          setState(() {
+            _notifications.removeWhere((n) => n.key == notif.key);
+            _notifications.insert(0, notif);
+          });
+        } else if (type == 'removed') {
+          final key = event['key'] as String?;
+          if (key != null) {
+            setState(() => _notifications.removeWhere((n) => n.key == key));
+          }
+        } else if (type == 'sessionEnded') {
+          if (mounted) setState(() => _notifications.clear());
+        }
+      },
+      onError: (_) {},
+    );
   }
 
   void _onUserInteraction(PointerEvent event) {
@@ -106,7 +139,9 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
           child: Scaffold(
             backgroundColor: Colors.black,
             body: SafeArea(
-              child: Column(
+              child: Stack(
+                children: [
+                  Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -150,6 +185,52 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
                               _isCharging ? Icons.battery_charging_full_rounded : Icons.battery_std_rounded, 
                               color: _isCharging ? AppConstants.primaryAccent : const Color(0xFF444444), 
                               size: 14
+                            ),
+                            const SizedBox(width: 14),
+                            // Notification feed toggle
+                            GestureDetector(
+                              onTap: () {
+                                _resetInactivityTimer();
+                                setState(() {
+                                  _showNotifications = !_showNotifications;
+                                });
+                              },
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    _showNotifications
+                                        ? Icons.notifications_active_rounded
+                                        : Icons.notifications_rounded,
+                                    color: _notifications.isNotEmpty
+                                        ? AppConstants.primaryAccent
+                                        : const Color(0xFF444444),
+                                    size: 16,
+                                  ),
+                                  if (_notifications.isNotEmpty) ...[
+                                    const SizedBox(width: 4),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppConstants.primaryAccent,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        '${_notifications.length}',
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppConstants.textDark,
+                                          height: 1.2,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
                             ),
                           ],
                         ),
@@ -268,8 +349,114 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
                   ),
                 ],
               ),
-            ),
+              if (_showNotifications) _buildNotificationPanel(),
+            ],
           ),
+        ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNotificationPanel() {
+    if (_notifications.isEmpty) {
+      return Positioned(
+        top: 56,
+        left: 16,
+        right: 16,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E1B1A),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFF332D2D)),
+          ),
+          child: const Row(
+            children: [
+              Icon(
+                Icons.notifications_off_rounded,
+                color: Color(0xFF666666),
+                size: 18,
+              ),
+              SizedBox(width: 12),
+              Text(
+                'No notifications yet',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF888888),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Positioned(
+      top: 56,
+      left: 12,
+      right: 12,
+      child: Container(
+        height: 260,
+        decoration: BoxDecoration(
+          color: const Color(0xFF1B1817),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: const Color(0xFF332D2D)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.6),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'NOTIFICATIONS',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF888888),
+                      letterSpacing: 2.0,
+                    ),
+                  ),
+                  Text(
+                    '${_notifications.length} new',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppConstants.primaryAccent,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(
+              height: 1,
+              thickness: 1,
+              color: Color(0xFF2A2625),
+            ),
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                itemCount: _notifications.length,
+                separatorBuilder: (_, __) =>
+                    const SizedBox(height: 4),
+                itemBuilder: (context, index) {
+                  return _NotificationCard(notification: _notifications[index]);
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -407,6 +594,145 @@ class _HoldToEjectButtonState extends State<_HoldToEjectButton>
           ],
         ),
       ),
+    );
+  }
+}
+
+class _NotificationCard extends StatelessWidget {
+  final AppNotification notification;
+
+  const _NotificationCard({required this.notification});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF24201F),
+        borderRadius: BorderRadius.circular(14),
+        border: Border(
+          left: BorderSide(
+            color: AppConstants.primaryAccent.withOpacity(0.6),
+            width: 3,
+          ),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _AppIcon(iconBase64: notification.iconBase64),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        notification.appName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                          color: AppConstants.primaryAccent,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      DateFormat('h:mm a').format(notification.postTime),
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: Color(0xFF777777),
+                      ),
+                    ),
+                  ],
+                ),
+                if (notification.title.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    notification.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+                if (notification.text.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    notification.text,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.white70,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AppIcon extends StatelessWidget {
+  final String? iconBase64;
+
+  const _AppIcon({this.iconBase64});
+
+  @override
+  Widget build(BuildContext context) {
+    Widget icon;
+    if (iconBase64 != null && iconBase64!.isNotEmpty) {
+      try {
+        final bytes = base64Decode(iconBase64!);
+        icon = Image.memory(
+          bytes,
+          fit: BoxFit.contain,
+          gaplessPlayback: true,
+          errorBuilder: (_, __, ___) => _fallbackIcon(),
+        );
+      } catch (_) {
+        icon = _fallbackIcon();
+      }
+    } else {
+      icon = _fallbackIcon();
+    }
+
+    return Container(
+      width: 36,
+      height: 36,
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1B1716),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFF332D2D)),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(5),
+        child: icon,
+      ),
+    );
+  }
+
+  Widget _fallbackIcon() {
+    return const Icon(
+      Icons.notifications_rounded,
+      color: AppConstants.primaryAccent,
+      size: 18,
     );
   }
 }
