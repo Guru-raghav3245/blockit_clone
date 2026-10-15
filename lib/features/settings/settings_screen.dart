@@ -272,9 +272,10 @@ class _PermissionTile extends StatelessWidget {
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: AppConstants.cardColor,
-              borderRadius: BorderRadius.circular(
-                hint != null && !isActive ? 16 : 20,
-              ),
+              // Square bottom corners when the hint box is attached below
+              borderRadius: hint != null && !isActive
+                  ? const BorderRadius.vertical(top: Radius.circular(16))
+                  : BorderRadius.circular(20),
               border: Border.all(
                 color: isActive
                     ? AppConstants.successGreen.withOpacity(0.4)
