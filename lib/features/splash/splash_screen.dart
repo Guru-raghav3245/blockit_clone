@@ -111,20 +111,14 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 opacity: _fadeAnimation,
                 child: ScaleTransition(
                   scale: _fadeAnimation,
-                  child: Container(
-                    width: 96,
-                    height: 96,
-                    decoration: BoxDecoration(
-                      color: AppConstants.cardColor,
-                      borderRadius: BorderRadius.circular(28),
-                      border: Border.all(color: AppConstants.borderColor, width: 1.5),
-                    ),
-                    child: const Center(
-                      child: Icon(
-                        Icons.phonelink_lock_rounded, // High-fidelity contextual shield icon
-                        size: 44,
-                        color: AppConstants.primaryAccent, // Peach color token
-                      ),
+                  // Rounded clip: logo.png has opaque corners outside the tile
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(22),
+                    child: Image.asset(
+                      'assets/logo.png',
+                      width: 96,
+                      height: 96,
+                      cacheWidth: 192,
                     ),
                   ),
                 ),
