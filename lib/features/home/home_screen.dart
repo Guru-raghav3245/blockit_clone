@@ -7,6 +7,7 @@ import '../../providers/stats_provider.dart';
 import '../../core/constants/app_constants.dart';
 import '../../services/local_storage_service.dart';
 import '../../services/auth_service.dart';
+import 'home_skeleton.dart';
 import '../settings/settings_screen.dart';
 import '../stats/stats_screen.dart';
 import '../active_session/active_session_screen.dart';
@@ -166,10 +167,22 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoadingPrefs || _wheelController == null || _duration == null) {
-      return const Scaffold(backgroundColor: AppConstants.backgroundColor);
-    }
+    // Skeleton until prefs are loaded and the route transition has finished,
+    // so the heavy first build doesn't compete with the fade-in animation.
+    final ready = !_isLoadingPrefs &&
+        _wheelController != null &&
+        _duration != null &&
+        _transitionCompleted;
 
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 300),
+      child: ready
+          ? KeyedSubtree(key: const ValueKey('home'), child: _buildHome(context))
+          : const HomeSkeleton(key: ValueKey('skeleton')),
+    );
+  }
+
+  Widget _buildHome(BuildContext context) {
     return Scaffold(
       backgroundColor: AppConstants.backgroundColor,
       body: Stack(
