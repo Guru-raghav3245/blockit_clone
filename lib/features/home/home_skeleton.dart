@@ -101,7 +101,18 @@ class _HomeSkeletonState extends State<HomeSkeleton>
           CurvedAnimation(parent: _pulse, curve: Curves.easeInOut),
         ),
         child: SafeArea(
-          child: Padding(
+          child: landscape
+              ? Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 16, 12),
+                  child: Row(
+                    children: [
+                      _block(40, width: 64),
+                      const SizedBox(width: 12),
+                      Expanded(child: body),
+                    ],
+                  ),
+                )
+              : Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
             child: Column(
               children: [

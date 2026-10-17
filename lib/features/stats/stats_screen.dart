@@ -289,14 +289,22 @@ class _StatsScreenState extends State<StatsScreen> {
       reelsFreeByMonth.putIfAbsent(mKey, () => []).add(r);
     }
 
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+
     return Scaffold(
       backgroundColor: AppConstants.backgroundColor,
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: const Text('STATS'),
-        centerTitle: true,
-      ),
-      body: IndexedStack(
+      appBar: isLandscape
+          ? null
+          : AppBar(
+              automaticallyImplyLeading: false,
+              title: const Text('STATS'),
+              centerTitle: true,
+            ),
+      body: SafeArea(
+        top: isLandscape,
+        bottom: false,
+        child: IndexedStack(
         index: widget.currentTab,
         children: [
           _buildOverviewTab(statsProvider),
@@ -308,6 +316,7 @@ class _StatsScreenState extends State<StatsScreen> {
           ),
           _buildHistoryTab(statsProvider),
         ],
+      ),
       ),
     );
   }
@@ -327,6 +336,112 @@ class _StatsScreenState extends State<StatsScreen> {
     );
     final reelsHours = (totalReelsFreeMins / 60).floor();
     final reelsMins = totalReelsFreeMins % 60;
+
+    if (MediaQuery.of(context).orientation == Orientation.landscape) {
+      Widget stat(IconData icon, Color color, String label, List<Widget> value) {
+        return Expanded(
+          child: _SectionCard(
+            padding: const EdgeInsets.all(20),
+            radius: 28,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _IconBadge(icon: icon, color: color),
+                const Spacer(),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: AppConstants.textMuted,
+                    letterSpacing: 2.0,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: value,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+
+      List<Widget> hm(int h, int m, Color color) {
+        final big = TextStyle(
+          fontSize: 56,
+          fontWeight: FontWeight.w900,
+          color: color,
+          height: 1,
+          fontFeatures: const [FontFeature.tabularFigures()],
+        );
+        final unit = TextStyle(fontSize: 20, color: color.withOpacity(0.7));
+        return [
+          Text('$h', style: big),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6, left: 2, right: 8),
+            child: Text('h', style: unit),
+          ),
+          Text('$m', style: big),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6, left: 2),
+            child: Text('m', style: unit),
+          ),
+        ];
+      }
+
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(0, 8, 16, 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            stat(
+              Icons.lock_clock_rounded,
+              AppConstants.primaryAccent,
+              'TIME RECLAIMED (PHONE LOCK)',
+              hm(totalHours, remainingMins, AppConstants.primaryAccent),
+            ),
+            const SizedBox(width: 12),
+            stat(
+              Icons.video_library_rounded,
+              Colors.white,
+              'REELS-FREE INSTAGRAM TIME',
+              hm(reelsHours, reelsMins, Colors.white),
+            ),
+            const SizedBox(width: 12),
+            stat(
+              Icons.local_fire_department_rounded,
+              AppConstants.primaryAccent,
+              'CURRENT STREAK (FULL FOCUS)',
+              [
+                Text(
+                  '${_calculateStreak(stats.sessions)}',
+                  style: const TextStyle(
+                    fontSize: 56,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                    height: 1,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 6, left: 6),
+                  child: Text(
+                    'days',
+                    style: TextStyle(fontSize: 20, color: Colors.white70),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
@@ -550,11 +665,9 @@ class _StatsScreenState extends State<StatsScreen> {
             );
     }
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
-      children: [
-        // Filter Switcher Pills row
-        _SectionCard(
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+    final filterCard = _SectionCard(
           padding: const EdgeInsets.all(4),
           radius: 999,
           child: Row(
@@ -564,21 +677,16 @@ class _StatsScreenState extends State<StatsScreen> {
               _buildFilterOption(2, 'Month'),
             ],
           ),
-        ),
-        const SizedBox(height: 12),
-
-        // NEW: Dual Analytics Source Metric Toggle Row Selection Panel
-        Row(
+        );
+    final metricRow = Row(
           children: [
             _buildMetricToggleOption(0, "Focus Lock"),
             const SizedBox(width: 8),
             _buildMetricToggleOption(1, "Reels-Free Time"),
           ],
-        ),
-        const SizedBox(height: 16),
-
-        SizedBox(
-          height: 310,
+        );
+    final pager = SizedBox(
+          height: isLandscape ? null : 310,
           child: PageView.builder(
             controller: _pageController,
             physics: const BouncingScrollPhysics(),
@@ -742,9 +850,8 @@ class _StatsScreenState extends State<StatsScreen> {
               );
             },
           ),
-        ),
-        const SizedBox(height: 16),
-        _SectionCard(
+        );
+    final summaryCard = _SectionCard(
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -770,7 +877,73 @@ class _StatsScreenState extends State<StatsScreen> {
               ),
             ],
           ),
+        );
+
+    if (isLandscape) {
+      // Controls + totals on the left, the chart gets the full height on the right.
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(0, 8, 16, 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(
+              width: 250,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  filterCard,
+                  const SizedBox(height: 12),
+                  metricRow,
+                  const Spacer(),
+                  _SectionCard(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _activeMetricIndex == 0
+                              ? "RECLAIMED FOCUS TIME"
+                              : "CLEAN ATTENTION TIME",
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: AppConstants.textMuted,
+                            letterSpacing: 1.5,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          "${(activeSumMinutes / 60).floor()}h ${activeSumMinutes % 60}m",
+                          style: const TextStyle(
+                            fontSize: 30,
+                            fontWeight: FontWeight.w900,
+                            color: AppConstants.primaryAccent,
+                            fontFeatures: [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(child: pager),
+          ],
         ),
+      );
+    }
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
+      children: [
+        filterCard,
+        const SizedBox(height: 12),
+        metricRow,
+        const SizedBox(height: 16),
+        pager,
+        const SizedBox(height: 16),
+        summaryCard,
       ],
     );
   }
@@ -848,6 +1021,80 @@ class _StatsScreenState extends State<StatsScreen> {
   }
 
   Widget _buildHistoryTab(StatsProvider statsProvider) {
+    if (MediaQuery.of(context).orientation == Orientation.landscape) {
+      Widget stat(String label, String value) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: AppConstants.textMuted,
+              letterSpacing: 2.0,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.w900,
+              color: AppConstants.primaryAccent,
+              height: 1.1,
+              fontFeatures: [FontFeature.tabularFigures()],
+            ),
+          ),
+        ],
+      );
+
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(0, 8, 16, 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(
+              width: 250,
+              child: _SectionCard(
+                padding: const EdgeInsets.all(20),
+                radius: 28,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'ALL FOCUS SESSIONS',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppConstants.textPrimary,
+                        letterSpacing: 2.0,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    stat('SESSIONS', '${statsProvider.totalSessions}'),
+                    const SizedBox(height: 16),
+                    stat(
+                      'FOCUSED',
+                      '${statsProvider.totalMinutes ~/ 60}h ${statsProvider.totalMinutes % 60}m',
+                    ),
+                    const SizedBox(height: 16),
+                    stat('PARACHUTES', '${statsProvider.parachutesUsed}'),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: statsProvider.sessions.isEmpty
+                  ? const _EmptyState()
+                  : SessionList(sessions: statsProvider.sessions),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

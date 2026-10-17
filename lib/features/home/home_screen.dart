@@ -187,31 +187,28 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHome(BuildContext context) {
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
     return Scaffold(
       backgroundColor: AppConstants.backgroundColor,
       body: Stack(
         children: [
-          Positioned.fill(
-            child: IndexedStack(
-              index: _currentIndex,
-              children: [
-                _buildHomeContent(context),
-                _transitionCompleted
-                    ? RepaintBoundary(
-                        child: StatsScreen(currentTab: _statsTabIndex),
-                      )
-                    : const Scaffold(
-                        backgroundColor: AppConstants.backgroundColor,
-                      ),
-                _transitionCompleted
-                    ? const RepaintBoundary(child: SettingsScreen())
-                    : const Scaffold(
-                        backgroundColor: AppConstants.backgroundColor,
-                      ),
-              ],
+          if (isLandscape)
+            Positioned.fill(
+              child: SafeArea(
+                child: Row(
+                  children: [
+                    _buildLandscapeRail(),
+                    Expanded(child: _buildPages()),
+                  ],
+                ),
+              ),
+            )
+          else
+            Positioned.fill(
+              child: _buildPages(),
             ),
-          ),
-          Positioned(
+          if (!isLandscape) Positioned(
             left: 16,
             right: 16,
             bottom: 10,
@@ -283,6 +280,110 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPages() {
+    return IndexedStack(
+              index: _currentIndex,
+              children: [
+                _buildHomeContent(context),
+                _transitionCompleted
+                    ? RepaintBoundary(
+                        child: StatsScreen(currentTab: _statsTabIndex),
+                      )
+                    : const Scaffold(
+                        backgroundColor: AppConstants.backgroundColor,
+                      ),
+                _transitionCompleted
+                    ? const RepaintBoundary(child: SettingsScreen())
+                    : const Scaffold(
+                        backgroundColor: AppConstants.backgroundColor,
+                      ),
+              ],
+            );
+  }
+
+  // Landscape: vertical nav rail on the left (mirrors the portrait pill,
+  // including the stats sub-tab/expand behaviour), account avatar below it.
+  Widget _buildLandscapeRail() {
+    final showStatsTabs = _currentIndex == 1 && !_isMainNavExpandedInStats;
+    final items = showStatsTabs
+        ? [
+            _buildRailStatsTab(0, Icons.grid_view_rounded),
+            const SizedBox(height: 4),
+            _buildRailStatsTab(1, Icons.insights_rounded),
+            const SizedBox(height: 4),
+            _buildRailStatsTab(2, Icons.history_rounded),
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: () => setState(() => _isMainNavExpandedInStats = true),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppConstants.borderColor,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.apps_rounded,
+                  color: AppConstants.textMuted,
+                  size: 26,
+                ),
+              ),
+            ),
+          ]
+        : [
+            _buildNavItem(0, Icons.timer_rounded),
+            const SizedBox(height: 4),
+            _buildNavItem(1, Icons.show_chart_rounded),
+            const SizedBox(height: 4),
+            _buildNavItem(2, Icons.settings_rounded),
+          ];
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 0, 12),
+      child: Column(
+        children: [
+          Expanded(
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppConstants.cardColor,
+                  borderRadius: BorderRadius.circular(40),
+                  border: Border.all(
+                    color: AppConstants.borderColor,
+                    width: 1.5,
+                  ),
+                ),
+                child: Column(mainAxisSize: MainAxisSize.min, children: items),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          _buildAccountAvatar(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRailStatsTab(int index, IconData icon) {
+    final isSelected = _statsTabIndex == index;
+    return GestureDetector(
+      onTap: () => setState(() => _statsTabIndex = index),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isSelected ? _accentColor : Colors.transparent,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          icon,
+          color: isSelected ? AppConstants.textDark : AppConstants.textMuted,
+          size: 26,
+        ),
       ),
     );
   }
@@ -487,50 +588,32 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildLandscapeLayout(int minutes) {
-    return Column(
-      children: [
-        const SizedBox(height: 4),
-        _buildTopBar(),
-        const SizedBox(height: 12),
-        Expanded(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(flex: 5, child: _buildBigDisplayCard(true, minutes)),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 6,
-                child: Row(
-                  children: [
-                    Expanded(flex: 13, child: _buildAsymmetricGrid(minutes)),
-                    const SizedBox(width: 12),
-                    Expanded(flex: 4, child: _buildThumbwheel()),
-                  ],
-                ),
-              ),
-            ],
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 8, 0, 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(flex: 5, child: _buildBigDisplayCard(true, minutes)),
+          const SizedBox(width: 12),
+          Expanded(flex: 5, child: _buildAsymmetricGrid(minutes)),
+          const SizedBox(width: 12),
+          SizedBox(
+            width: 84,
+            child: Column(
+              children: [
+                Expanded(child: _buildThumbwheel()),
+                const SizedBox(height: 12),
+                _buildPlayButton(_duration!),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 80),
-      ],
+        ],
+      ),
     );
   }
 
-  Widget _buildTopBar() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        const SizedBox(width: 40),
-        const Text(
-          AppConstants.appName,
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 2.0,
-            color: AppConstants.textPrimary,
-          ),
-        ),
-        StreamBuilder<User?>(
+  Widget _buildAccountAvatar() {
+    return StreamBuilder<User?>(
           stream: _authService.authStateChanges,
           builder: (context, snapshot) {
             final user = snapshot.data;
@@ -588,7 +671,24 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
             );
           },
+        );
+  }
+
+  Widget _buildTopBar() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        const SizedBox(width: 40),
+        const Text(
+          AppConstants.appName,
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 2.0,
+            color: AppConstants.textPrimary,
+          ),
         ),
+        _buildAccountAvatar(),
       ],
     );
   }
@@ -710,7 +810,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           SizedBox(
-            width: isLandscape ? 110 : 140,
+            width: isLandscape ? 150 : 140,
             child: Stack(
               children: [
                 Align(

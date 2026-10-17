@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -141,102 +142,22 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
             body: SafeArea(
               child: Stack(
                 children: [
-                  Column(
+                  isLandscape
+                      ? _buildLandscapeBody(
+                          sessionProvider: sessionProvider,
+                          liveWallTime: liveWallTime,
+                          batteryText: batteryText,
+                          startTimeText: startTimeText,
+                          hours: hours,
+                          minutes: minutes,
+                          seconds: seconds,
+                        )
+                      : Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   // Hardware Device Status Top Bar Widget Panel
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.access_time_filled_rounded, color: Color(0xFF444444), size: 14),
-                            const SizedBox(width: 6),
-                            Text(
-                              liveWallTime,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF666666),
-                                fontFeatures: [FontFeature.tabularFigures()],
-                              ),
-                            ),
-                          ],
-                        ),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              batteryText,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF666666),
-                                fontFeatures: [FontFeature.tabularFigures()],
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            // DYNAMICALLY TOGGLED AND TINTED CHARGING STATES
-                            Icon(
-                              _isCharging ? Icons.battery_charging_full_rounded : Icons.battery_std_rounded, 
-                              color: _isCharging ? AppConstants.primaryAccent : const Color(0xFF444444), 
-                              size: 14
-                            ),
-                            const SizedBox(width: 14),
-                            // Notification feed toggle
-                            GestureDetector(
-                              onTap: () {
-                                _resetInactivityTimer();
-                                setState(() {
-                                  _showNotifications = !_showNotifications;
-                                });
-                              },
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    _showNotifications
-                                        ? Icons.notifications_active_rounded
-                                        : Icons.notifications_rounded,
-                                    color: _notifications.isNotEmpty
-                                        ? AppConstants.primaryAccent
-                                        : const Color(0xFF444444),
-                                    size: 16,
-                                  ),
-                                  if (_notifications.isNotEmpty) ...[
-                                    const SizedBox(width: 4),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 6,
-                                        vertical: 2,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: AppConstants.primaryAccent,
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Text(
-                                        '${_notifications.length}',
-                                        style: const TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w800,
-                                          color: AppConstants.textDark,
-                                          height: 1.2,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
+                  _buildStatusBar(liveWallTime, batteryText, isLandscape),
                   
                   SizedBox(height: isLandscape ? 10 : 30),
                   const Text(
@@ -359,6 +280,201 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
     );
   }
 
+  Widget _buildStatusBar(
+      String liveWallTime, String batteryText, bool isLandscape) {
+    return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        isLandscape
+                            ? const SizedBox.shrink()
+                            : Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.access_time_filled_rounded, color: Color(0xFF444444), size: 14),
+                            const SizedBox(width: 6),
+                            Text(
+                              liveWallTime,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF666666),
+                                fontFeatures: [FontFeature.tabularFigures()],
+                              ),
+                            ),
+                          ],
+                        ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              batteryText,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF666666),
+                                fontFeatures: [FontFeature.tabularFigures()],
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            // DYNAMICALLY TOGGLED AND TINTED CHARGING STATES
+                            Icon(
+                              _isCharging ? Icons.battery_charging_full_rounded : Icons.battery_std_rounded, 
+                              color: _isCharging ? AppConstants.primaryAccent : const Color(0xFF444444), 
+                              size: 14
+                            ),
+                            const SizedBox(width: 14),
+                            // Notification feed toggle
+                            GestureDetector(
+                              onTap: () {
+                                _resetInactivityTimer();
+                                setState(() {
+                                  _showNotifications = !_showNotifications;
+                                });
+                              },
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    _showNotifications
+                                        ? Icons.notifications_active_rounded
+                                        : Icons.notifications_rounded,
+                                    color: _notifications.isNotEmpty
+                                        ? AppConstants.primaryAccent
+                                        : const Color(0xFF444444),
+                                    size: 16,
+                                  ),
+                                  if (_notifications.isNotEmpty) ...[
+                                    const SizedBox(width: 4),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppConstants.primaryAccent,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        '${_notifications.length}',
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppConstants.textDark,
+                                          height: 1.2,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+  }
+
+  // iPhone-StandBy style: wall clock on the left, session countdown on the right.
+  Widget _buildLandscapeBody({
+    required SessionProvider sessionProvider,
+    required String liveWallTime,
+    required String batteryText,
+    required String startTimeText,
+    required int hours,
+    required int minutes,
+    required int seconds,
+  }) {
+    const bigStyle = TextStyle(
+      fontWeight: FontWeight.w900,
+      color: Colors.white,
+      height: 0.95,
+      letterSpacing: -4.0,
+      fontFeatures: [FontFeature.tabularFigures()],
+    );
+    final now = DateTime.now();
+    final mm = minutes.toString().padLeft(2, '0');
+    final ss = seconds.toString().padLeft(2, '0');
+    final countdown =
+        hours > 0 ? '${hours.toString().padLeft(2, '0')}:$mm:$ss' : '$mm:$ss';
+
+    Widget panel(String label, String value, String footer, Color footerColor) {
+      return Expanded(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF444444),
+                  letterSpacing: 4.0,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(value, style: bigStyle.copyWith(fontSize: 120)),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                footer,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: footerColor,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        _buildStatusBar(liveWallTime, batteryText, true),
+        Expanded(
+          child: Row(
+            children: [
+              panel(
+                'NOW',
+                DateFormat('h:mm').format(now),
+                '${DateFormat('a').format(now)} · ${DateFormat('EEE, MMM d').format(now)}',
+                const Color(0xFF666666),
+              ),
+              Container(width: 1, height: 120, color: const Color(0xFF2A2A2A)),
+              panel(
+                'SESSION ACTIVE',
+                countdown,
+                'STARTED AT: $startTimeText',
+                AppConstants.primaryAccent,
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(40, 4, 40, 12),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: _HoldToEjectButton(
+              onEject: () => sessionProvider.emergencyStop(context),
+              onInteraction: _resetInactivityTimer,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildNotificationPanel() {
     if (_notifications.isEmpty) {
       return Positioned(
@@ -399,7 +515,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
       left: 12,
       right: 12,
       child: Container(
-        height: 260,
+        height: math.min(260.0, MediaQuery.of(context).size.height - 80),
         decoration: BoxDecoration(
           color: const Color(0xFF1B1817),
           borderRadius: BorderRadius.circular(24),

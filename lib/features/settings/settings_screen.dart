@@ -102,16 +102,9 @@ class _SettingsScreenState extends State<SettingsScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppConstants.backgroundColor,
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: const Text('SETTINGS'),
-        centerTitle: true,
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(24, 16, 24, 110),
-        children: [
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+    final permissions = <Widget>[
           const _SectionLabel(label: 'PERMISSIONS'),
           const SizedBox(height: 16),
 
@@ -169,7 +162,8 @@ class _SettingsScreenState extends State<SettingsScreen>
                 : 'Find "Blockit Notification Access" in the list and enable it',
           ),
 
-          const SizedBox(height: 32),
+    ];
+    final blocking = <Widget>[
           const _SectionLabel(label: 'CONTENT BLOCKING'),
           const SizedBox(height: 16),
 
@@ -220,7 +214,40 @@ class _SettingsScreenState extends State<SettingsScreen>
                 ),
               ),
             ),
-        ],
+    ];
+
+    return Scaffold(
+      backgroundColor: AppConstants.backgroundColor,
+      appBar: isLandscape
+          ? null
+          : AppBar(
+              automaticallyImplyLeading: false,
+              title: const Text('SETTINGS'),
+              centerTitle: true,
+            ),
+      body: SafeArea(
+        top: isLandscape,
+        bottom: false,
+        child: isLandscape
+            ? Padding(
+                padding: const EdgeInsets.fromLTRB(0, 8, 16, 12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: ListView(children: permissions)),
+                    const SizedBox(width: 16),
+                    Expanded(child: ListView(children: blocking)),
+                  ],
+                ),
+              )
+            : ListView(
+                padding: const EdgeInsets.fromLTRB(24, 16, 24, 110),
+                children: [
+                  ...permissions,
+                  const SizedBox(height: 32),
+                  ...blocking,
+                ],
+              ),
       ),
     );
   }
