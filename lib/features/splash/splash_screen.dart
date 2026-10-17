@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
@@ -16,8 +17,8 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
-  double _loadingProgress = 0.0;
-  String _loadingStatus = "Initializing blockit...";
+  final double _loadingProgress = 0.0;
+  final String _loadingStatus = "Initializing blockit...";
 
   @override
   void initState() {
@@ -38,39 +39,15 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   Future<void> _initializeApp() async {
     try {
-      // Step 1: Simulate engine warm up
-      await Future.delayed(const Duration(milliseconds: 600));
-      if (!mounted) return;
-      setState(() {
-        _loadingProgress = 0.3;
-        _loadingStatus = "Loading secure configurations...";
-      });
-
-      // Step 2: Initialize stats, syncing from the cloud if already signed in
+      // Local stats only; the cloud merge runs in the background so a slow
+      // network never holds up the splash.
+      final stats = context.read<StatsProvider>();
+      await stats.loadStats();
       final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        await context.read<StatsProvider>().loginAndSync(user.uid);
-      } else {
-        await context.read<StatsProvider>().loadStats();
-      }
-      
-      if (!mounted) return;
-      setState(() {
-        _loadingProgress = 0.7;
-        _loadingStatus = "Synchronizing cloud data...";
-      });
+      // ponytail: a session finishing mid-sync could be overwritten by the
+      // merge; serialize via a queue in StatsProvider if that ever shows up.
+      if (user != null) unawaited(stats.loginAndSync(user.uid));
 
-      // Step 3: Brief hold to prevent layout flash on ultra-fast devices
-      await Future.delayed(const Duration(milliseconds: 800));
-      if (!mounted) return;
-      setState(() {
-        _loadingProgress = 1.0;
-        _loadingStatus = "Ready";
-      });
-
-      await Future.delayed(const Duration(milliseconds: 200));
-
-      // Route smoothly into the home screen workspace
       if (mounted) {
         Navigator.pushReplacement(
           context,
