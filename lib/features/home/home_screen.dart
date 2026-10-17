@@ -13,6 +13,7 @@ import '../stats/stats_screen.dart';
 import '../active_session/active_session_screen.dart';
 import '../../core/utils/app_routes.dart';
 import '../../core/utils/widget_helper.dart';
+import '../../core/utils/platform_channel_helper.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -68,10 +69,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final sessionProvider = context.read<SessionProvider>();
     final pendingDuration = sessionProvider.pendingWidgetDuration;
     if (pendingDuration != null) {
-      // Clear inside a microtask block to separate notifications cleanly
-      Future.microtask(() {
-        sessionProvider.clearPendingWidgetDuration();
-      });
+      // Clear synchronously: startSession notifies listeners, which re-enter
+      // this method and would start the session again while still pending.
+      sessionProvider.clearPendingWidgetDuration();
       _startSessionFromWidget(pendingDuration);
     }
   }
@@ -82,8 +82,12 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) return;
     if (result == SessionStartResult.lockTaskFailed) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not start focus lock. Enable Device Admin in Settings and try again.'),
+        SnackBar(
+          content: const Text('Could not start focus lock. Enable Device Admin and try again.'),
+          action: SnackBarAction(
+            label: 'ENABLE',
+            onPressed: PlatformChannelHelper.openDeviceAdminSettings,
+          ),
         ),
       );
     }

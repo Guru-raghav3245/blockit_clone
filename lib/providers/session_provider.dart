@@ -58,7 +58,7 @@ class SessionProvider extends ChangeNotifier {
     int durationMinutes,
     BuildContext context,
   ) async {
-    if (_isSessionActive) return SessionStartResult.alreadyActive;
+    if (_isSessionActive || _isLocking) return SessionStartResult.alreadyActive;
 
     _isLocking = true;
     notifyListeners();
