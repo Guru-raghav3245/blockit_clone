@@ -30,4 +30,5 @@ class AppConstants {
   static const String keyParachutesUsed = 'parachutes_used';
   static const String keyLastSelectedDuration = 'last_selected_duration';
   static const String keyLastStatsFilter = 'last_stats_filter';
+  static const String keyHapticsEnabled = 'haptics_enabled';
 }

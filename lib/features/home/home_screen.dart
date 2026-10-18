@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../providers/session_provider.dart';
@@ -12,6 +11,7 @@ import '../settings/settings_screen.dart';
 import '../stats/stats_screen.dart';
 import '../active_session/active_session_screen.dart';
 import '../../core/utils/app_routes.dart';
+import '../../core/utils/haptics.dart';
 import '../../core/utils/widget_helper.dart';
 import '../../core/utils/platform_channel_helper.dart';
 
@@ -148,6 +148,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (notifier == null) return;
     if (notifier.value == newDuration) return;
     notifier.value = newDuration;
+    Haptics.selection();
     LocalStorageService.saveLastSelectedDuration(newDuration);
 
     WidgetHelper.updateWidgetDuration(newDuration);
@@ -524,6 +525,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final isSelected = _currentIndex == index;
     return GestureDetector(
       onTap: () {
+        if (_currentIndex != index) Haptics.selection();
         setState(() {
           _currentIndex = index;
           if (index == 1) _isMainNavExpandedInStats = false;
@@ -975,6 +977,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     if (notifier == null) return;
                     if (notifier.value != newDuration) {
                       notifier.value = newDuration;
+                      Haptics.selection();
                       LocalStorageService.saveLastSelectedDuration(newDuration);
                       WidgetHelper.updateWidgetDuration(newDuration);
                     }
@@ -1104,7 +1107,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return GestureDetector(
           onTap: () async {
             if (!isLocking) {
-              HapticFeedback.lightImpact();
+              Haptics.light();
               final sessionProvider = context.read<SessionProvider>();
               final result = await sessionProvider.startSession(
                 duration.value,

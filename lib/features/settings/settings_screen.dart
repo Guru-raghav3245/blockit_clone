@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/haptics.dart';
 import '../../core/utils/platform_channel_helper.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -214,6 +215,22 @@ class _SettingsScreenState extends State<SettingsScreen>
                 ),
               ),
             ),
+
+          const SizedBox(height: 32),
+          const _SectionLabel(label: 'FEEDBACK'),
+          const SizedBox(height: 16),
+
+          _PermissionTile(
+            icon: Icons.vibration_rounded,
+            title: 'Haptics',
+            subtitle: 'Vibrate on key taps and session events',
+            isActive: Haptics.enabled,
+            onTap: () async {
+              await Haptics.setEnabled(!Haptics.enabled);
+              Haptics.selection();
+              if (mounted) setState(() {});
+            },
+          ),
     ];
 
     return Scaffold(

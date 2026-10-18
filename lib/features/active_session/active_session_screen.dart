@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../providers/session_provider.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/haptics.dart';
 import '../../core/utils/platform_channel_helper.dart';
 import '../../models/app_notification.dart';
 
@@ -636,6 +637,7 @@ class _HoldToEjectButtonState extends State<_HoldToEjectButton>
       setState(() {});
       if (_controller.isCompleted && !_isEjected) {
         _isEjected = true;
+        Haptics.heavy();
         widget.onEject();
       }
     });
@@ -652,7 +654,10 @@ class _HoldToEjectButtonState extends State<_HoldToEjectButton>
     return GestureDetector(
       onTapDown: (_) {
         widget.onInteraction();
-        if (!_isEjected) _controller.forward();
+        if (!_isEjected) {
+          Haptics.light();
+          _controller.forward();
+        }
       },
       onTapUp: (_) {
         widget.onInteraction();

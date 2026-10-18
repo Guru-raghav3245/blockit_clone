@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:home_widget/home_widget.dart';
 import 'firebase_options.dart';
 import 'app.dart';
+import 'core/utils/haptics.dart';
 import 'core/utils/widget_helper.dart';
 
 void main() async {
@@ -16,6 +17,8 @@ void main() async {
 
   // FIXED: Registers the interactivity callback handler for modern home_widget functionality
   HomeWidget.registerInteractivityCallback(homeWidgetBackgroundCallback);
+
+  await Haptics.load();
 
   runApp(const BlockitApp());
 }

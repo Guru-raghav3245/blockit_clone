@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import '../core/utils/haptics.dart';
 import '../core/utils/platform_channel_helper.dart';
 import '../models/freedom_session.dart';
 import 'stats_provider.dart';
@@ -131,6 +132,7 @@ class SessionProvider extends ChangeNotifier {
     );
 
     await PlatformChannelHelper.wakeScreen();
+    Haptics.heavy();
 
     // Small delay to let the wake + un-dim fully render before navigating
     await Future.delayed(const Duration(milliseconds: 500));
